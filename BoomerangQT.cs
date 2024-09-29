@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
+using System.Globalization;
 using System.Linq;
 using TradingPlatform.BusinessLayer;
 
@@ -26,25 +27,25 @@ namespace BoomerangQT
 
         // Corrected Timeframe parameter using strings
         [InputParameter("Timeframe", 25, variants: new object[] { "1 Minute", "MIN1", "2 Minutes", "MIN2", "5 Minutes", "MIN5", "15 Minutes", "MIN15" })]
-        public string timeframe = "MIN1";
+        public string timeframe = "MIN5";
 
         [InputParameter("Open of Range", 30)]
-        public DateTime startTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 12, 25, 0, DateTimeKind.Local);
+        public DateTime startTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 8, 30, 0, DateTimeKind.Local);
 
         [InputParameter("Close of Range", 40)]
-        public DateTime endTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 12, 30, 0, DateTimeKind.Local);
+        public DateTime endTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 15, 0, 0, DateTimeKind.Local);
 
         [InputParameter("Look for entry from", 50)]
-        public DateTime detectionStartTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 12, 30, 0, DateTimeKind.Local);
+        public DateTime detectionStartTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 15, 0, 0, DateTimeKind.Local);
 
         [InputParameter("Look for entry until", 60)]
-        public DateTime detectionEndTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 22, 0, 0, DateTimeKind.Local);
+        public DateTime detectionEndTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 16, 0, 0, DateTimeKind.Local);
 
         [InputParameter("Close Positions At", 70)]
-        public DateTime closePositionsAt = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 22, 0, 0, DateTimeKind.Local);
+        public DateTime closePositionsAt = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 16, 0, 0, DateTimeKind.Local);
 
         [InputParameter("Stop Loss Percentage", 80)]
-        public double stopLossPercentage = 0.35;
+        public double stopLossPercentage = 0.006;
 
         [InputParameter("Enable Break Even", 85, variants: new object[] { "True", true, "False", false })]
         public bool enableBreakEven = true;
@@ -57,7 +58,7 @@ namespace BoomerangQT
         public bool enableDcaLevel1 = true;
 
         [InputParameter("DCA Level 1 Trigger Percentage", 101)]
-        public double dcaPercentage1 = 0.15;
+        public double dcaPercentage1 = 0.002;
 
         [InputParameter("DCA Level 1 Quantity", 102)]
         public double dcaQuantity1 = 1;
@@ -82,7 +83,7 @@ namespace BoomerangQT
         [InputParameter("DCA Level 3 Quantity", 122)]
         public double dcaQuantity3 = 1;
 
-        public override string[] MonitoringConnectionsIds => new[] { symbol?.ConnectionId };
+        public override string[] MonitoringConnectionsIds => symbol != null ? new[] { symbol.ConnectionId } : new string[0];
 
         // Override Settings to customize DateTime input parameters
         public override IList<SettingItem> Settings
@@ -149,42 +150,39 @@ namespace BoomerangQT
 
             if (!ValidateInputs()) return;
 
-            if (this.symbol == null || this.account == null || this.symbol.ConnectionId != this.account.ConnectionId)
+            // Removed symbol re-initialization to prevent potential issues
+            if (symbol == null)
             {
-                Log("Incorrect input parameters... Symbol or Account are not specified or they have diffent connectionID.", StrategyLoggingLevel.Error);
-                return;
-            }
-
-            this.symbol = Core.GetSymbol(this.symbol?.CreateInfo());
-
-            if (this.symbol == null)
-            {
-                Log("Failed to initialize symbol.", StrategyLoggingLevel.Error);
+                Log("Symbol is not specified.", StrategyLoggingLevel.Error);
                 Stop();
                 return;
             }
 
-            Log($"Symbol initialized: {this.symbol.Name}", StrategyLoggingLevel.Trading);
+            Log($"Symbol initialized: {symbol.Name}", StrategyLoggingLevel.Trading);
 
-            // Map the timeframe string to the Period
+            // Map the timeframe string to the Period enum
             Period selectedPeriod;
-            switch (timeframe)
+            switch (timeframe.ToUpper())
             {
                 case "MIN1":
+                case "1 MINUTE":
                     selectedPeriod = Period.MIN1;
                     break;
                 case "MIN2":
+                case "2 MINUTES":
                     selectedPeriod = Period.MIN2;
                     break;
                 case "MIN5":
+                case "5 MINUTES":
                     selectedPeriod = Period.MIN5;
                     break;
                 case "MIN15":
+                case "15 MINUTES":
                     selectedPeriod = Period.MIN15;
                     break;
                 default:
                     selectedPeriod = Period.MIN5;
-                    Log($"Invalid timeframe selected. Defaulting to MIN5.", StrategyLoggingLevel.Error);
+                    Log($"Invalid timeframe '{timeframe}' selected. Defaulting to MIN5.", StrategyLoggingLevel.Error);
                     break;
             }
 
@@ -251,9 +249,11 @@ namespace BoomerangQT
             }
 
             // Validate that DCA trigger percentages are less than stop loss percentage
-            foreach (var dcaLevel in new[] { new { Enabled = enableDcaLevel1, Percentage = dcaPercentage1, Level = 1 },
-                                             new { Enabled = enableDcaLevel2, Percentage = dcaPercentage2, Level = 2 },
-                                             new { Enabled = enableDcaLevel3, Percentage = dcaPercentage3, Level = 3 } })
+            foreach (var dcaLevel in new[] {
+                new { Enabled = enableDcaLevel1, Percentage = dcaPercentage1, Level = 1 },
+                new { Enabled = enableDcaLevel2, Percentage = dcaPercentage2, Level = 2 },
+                new { Enabled = enableDcaLevel3, Percentage = dcaPercentage3, Level = 3 }
+            })
             {
                 if (dcaLevel.Enabled && dcaLevel.Percentage >= stopLossPercentage)
                 {
