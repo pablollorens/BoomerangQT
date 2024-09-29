@@ -1,63 +1,120 @@
-﻿// Copyright QUANTOWER LLC. © 2017-2023. All rights reserved.
+﻿// BoomerangQT Strategy with BE Activation and Configurable Timeframe (Corrected)
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Diagnostics.Metrics;
-using TradingPlatform.BusinessLayer;
-using TradingPlatform.BusinessLayer.Chart;
-using System.Reflection.Metadata.Ecma335;
 using System.Linq;
+using TradingPlatform.BusinessLayer;
 
 namespace BoomerangQT
 {
-    /// <summary>
-    /// An example of strategy for working with one symbol. Add your code, compile it and run via Strategy Runner panel in the assigned trading terminal.
-    /// Information about API you can find here: http://api.quantower.com
-    /// </summary>
-	public class BoomerangQT : Strategy
+    public enum Status
     {
+        WaitingForRange,
+        BreakoutDetection,
+        ManagingTrade
+    }
+
+    public class BoomerangQT : Strategy
+    {
+        // Strategy parameters
         [InputParameter("Symbol", 10)]
         private Symbol symbol;
 
         [InputParameter("Account", 20)]
         public Account account;
 
+        // Corrected Timeframe parameter using strings
+        [InputParameter("Timeframe", 25, variants: new object[] { "1 Minute", "MIN1", "2 Minutes", "MIN2", "5 Minutes", "MIN5", "15 Minutes", "MIN15" })]
+        public string timeframe = "MIN1";
+
         [InputParameter("Open of Range", 30)]
-        public DateTime startTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 8, 30, 0, DateTimeKind.Local);
+        public DateTime startTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 12, 25, 0, DateTimeKind.Local);
 
         [InputParameter("Close of Range", 40)]
-        public DateTime endTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 15, 0, 0, DateTimeKind.Local);
+        public DateTime endTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 12, 30, 0, DateTimeKind.Local);
 
         [InputParameter("Look for entry from", 50)]
-        public DateTime detectionStartTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 17, 0, 0, DateTimeKind.Local);
+        public DateTime detectionStartTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 12, 30, 0, DateTimeKind.Local);
 
         [InputParameter("Look for entry until", 60)]
-        public DateTime detectionEndTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 17, 0, 0, DateTimeKind.Local);
+        public DateTime detectionEndTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 22, 0, 0, DateTimeKind.Local);
 
-        public override IList<SettingItem> Settings {
-            get {
+        [InputParameter("Close Positions At", 70)]
+        public DateTime closePositionsAt = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 22, 0, 0, DateTimeKind.Local);
+
+        [InputParameter("Stop Loss Percentage", 80)]
+        public double stopLossPercentage = 0.35;
+
+        [InputParameter("Enable Break Even", 85, variants: new object[] { "True", true, "False", false })]
+        public bool enableBreakEven = true;
+
+        [InputParameter("Number of DCA to Break Even", 90)]
+        public int numberDCAToBE = 1;
+
+        // DCA Level 1 Parameters
+        [InputParameter("Enable DCA Level 1", 100, variants: new object[] { "True", true, "False", false })]
+        public bool enableDcaLevel1 = true;
+
+        [InputParameter("DCA Level 1 Trigger Percentage", 101)]
+        public double dcaPercentage1 = 0.15;
+
+        [InputParameter("DCA Level 1 Quantity", 102)]
+        public double dcaQuantity1 = 1;
+
+        // DCA Level 2 Parameters
+        [InputParameter("Enable DCA Level 2", 110, variants: new object[] { "True", true, "False", false })]
+        public bool enableDcaLevel2 = false;
+
+        [InputParameter("DCA Level 2 Trigger Percentage", 111)]
+        public double dcaPercentage2 = 0.004;
+
+        [InputParameter("DCA Level 2 Quantity", 112)]
+        public double dcaQuantity2 = 1;
+
+        // DCA Level 3 Parameters
+        [InputParameter("Enable DCA Level 3", 120, variants: new object[] { "True", true, "False", false })]
+        public bool enableDcaLevel3 = false;
+
+        [InputParameter("DCA Level 3 Trigger Percentage", 121)]
+        public double dcaPercentage3 = 0.006;
+
+        [InputParameter("DCA Level 3 Quantity", 122)]
+        public double dcaQuantity3 = 1;
+
+        public override string[] MonitoringConnectionsIds => new[] { symbol?.ConnectionId };
+
+        // Override Settings to customize DateTime input parameters
+        public override IList<SettingItem> Settings
+        {
+            get
+            {
                 var settings = base.Settings;
 
-                // Customize datatime fields to show only times
-
-                if (settings.GetItemByName("Open of Range") is SettingItemDateTime startTimeSi) {
+                // Customize DateTime fields to show only times
+                if (settings.GetItemByName("Open of Range") is SettingItemDateTime startTimeSi)
+                {
                     startTimeSi.Format = DatePickerFormat.LongTime;
                 }
 
-                if (settings.GetItemByName("Close of Range") is SettingItemDateTime endTimeSi) {
+                if (settings.GetItemByName("Close of Range") is SettingItemDateTime endTimeSi)
+                {
                     endTimeSi.Format = DatePickerFormat.LongTime;
                 }
 
-                if (settings.GetItemByName("Detection Start Time") is SettingItemDateTime detectionStartTimeSi)
+                if (settings.GetItemByName("Look for entry from") is SettingItemDateTime detectionStartTimeSi)
                 {
                     detectionStartTimeSi.Format = DatePickerFormat.LongTime;
                 }
 
-                if (settings.GetItemByName("Detection End Time") is SettingItemDateTime detectionEndTimeSi)
+                if (settings.GetItemByName("Look for entry until") is SettingItemDateTime detectionEndTimeSi)
                 {
                     detectionEndTimeSi.Format = DatePickerFormat.LongTime;
+                }
+
+                if (settings.GetItemByName("Close Positions At") is SettingItemDateTime closePositionsAtSi)
+                {
+                    closePositionsAtSi.Format = DatePickerFormat.LongTime;
                 }
 
                 return settings;
@@ -65,45 +122,33 @@ namespace BoomerangQT
             set { base.Settings = value; }
         }
 
-        public override string[] MonitoringConnectionsIds => new string[] { this.symbol?.ConnectionId };
-
+        // Private variables
         private HistoricalData historicalData;
-
-        private double rangeHigh = double.MinValue;
-        private double rangeLow = double.MaxValue;
-        private bool rangeActive = false;
-        private bool detectionActive = false;
+        private double? rangeHigh = null;
+        private double? rangeLow = null;
         private DateTime rangeStart;
         private DateTime rangeEnd;
         private DateTime detectionStart;
         private DateTime detectionEnd;
-        private double stopLossPercentage = 0.003; // This could be open
-        private double dcaPercentage1 = 0.0015; // This could be open
-        private double dcaQuantity1 = 1; // This could be open
         private Position currentPosition;
-        private int numberDCA = 0;
-        private int numberDCAToBE = 1; // This could be open
+        private int numberDCA;
+        private Status strategyStatus = Status.WaitingForRange;
 
-        public BoomerangQT() : base()
+        // DCA levels list
+        private List<DcaLevel> dcaLevels = new List<DcaLevel>();
+
+        public BoomerangQT()
         {
-            // Defines strategy's name and description.
-            this.Name = "BoomerangQT";
-            this.Description = "Time Range with Box Drawing";
+            Name = "BoomerangQT";
+            Description = "Range breakout strategy with multiple DCA levels and session end position closure";
         }
 
-        /// <summary>
-        /// This function will be called after creating a strategy
-        /// </summary>
-        protected override void OnCreated()
-        {
-            // Add your code here
-        }
-
-        /// <summary>
-        /// This function will be called after running a strategy
-        /// </summary>
         protected override void OnRun()
         {
+            Log("Strategy is starting.", StrategyLoggingLevel.Trading);
+
+            if (!ValidateInputs()) return;
+
             if (this.symbol == null || this.account == null || this.symbol.ConnectionId != this.account.ConnectionId)
             {
                 Log("Incorrect input parameters... Symbol or Account are not specified or they have diffent connectionID.", StrategyLoggingLevel.Error);
@@ -112,158 +157,341 @@ namespace BoomerangQT
 
             this.symbol = Core.GetSymbol(this.symbol?.CreateInfo());
 
-            if (this.symbol != null)
+            if (this.symbol == null)
             {
-                this.symbol.NewQuote += this.SymbolOnNewQuote;
-                this.symbol.NewLast += this.SymbolOnNewLast;
-                historicalData = this.symbol.GetHistory(Period.MIN1, Core.TimeUtils.DateTimeUtcNow);
-                historicalData.NewHistoryItem += OnBarClosed;
-
-                // Add listener for position opening
-                Core.PositionAdded += this.CoreOnPositionAdded;
-
+                Log("Failed to initialize symbol.", StrategyLoggingLevel.Error);
+                Stop();
+                return;
             }
 
-            // Add your code here
+            Log($"Symbol initialized: {this.symbol.Name}", StrategyLoggingLevel.Trading);
+
+            // Map the timeframe string to the Period
+            Period selectedPeriod;
+            switch (timeframe)
+            {
+                case "MIN1":
+                    selectedPeriod = Period.MIN1;
+                    break;
+                case "MIN2":
+                    selectedPeriod = Period.MIN2;
+                    break;
+                case "MIN5":
+                    selectedPeriod = Period.MIN5;
+                    break;
+                case "MIN15":
+                    selectedPeriod = Period.MIN15;
+                    break;
+                default:
+                    selectedPeriod = Period.MIN5;
+                    Log($"Invalid timeframe selected. Defaulting to MIN5.", StrategyLoggingLevel.Error);
+                    break;
+            }
+
+            historicalData = symbol.GetHistory(selectedPeriod, DateTime.UtcNow);
+            if (historicalData == null)
+            {
+                Log("Failed to get historical data.", StrategyLoggingLevel.Error);
+                Stop();
+                return;
+            }
+
+            Log($"Historical data loaded with timeframe: {selectedPeriod}", StrategyLoggingLevel.Trading);
+
+            InitializeDcaLevels();
+
+            historicalData.NewHistoryItem += OnNewHistoryItem;
+            Core.PositionAdded += OnPositionAdded;
         }
 
-        private void OnBarClosed(object sender, HistoryEventArgs e)
+        private void InitializeDcaLevels()
         {
-            DateTime barTime = e.HistoryItem.TimeLeft;
+            dcaLevels.Clear();
 
-            // Recalculate rangeStart and rangeEnd for each day based on the current bar's date (ignore the time)
-            DateTime today = barTime.Date;
+            if (enableDcaLevel1)
+                dcaLevels.Add(new DcaLevel { TriggerPercentage = dcaPercentage1, Quantity = dcaQuantity1, LevelNumber = 1 });
 
-            // Set rangeStart and rangeEnd using only the time component of StartTime and EndTime for the current day
-            rangeStart = today.AddHours(startTime.Hour).AddMinutes(startTime.Minute);
-            rangeEnd = today.AddHours(endTime.Hour).AddMinutes(endTime.Minute);
+            if (enableDcaLevel2)
+                dcaLevels.Add(new DcaLevel { TriggerPercentage = dcaPercentage2, Quantity = dcaQuantity2, LevelNumber = 2 });
 
-            // Same for detectionStartTime and detectionEndTime
-            detectionStart = today.AddHours(detectionStartTime.Hour).AddMinutes(detectionEndTime.Minute);
-            detectionEnd = today.AddHours(detectionStartTime.Hour).AddMinutes(detectionEndTime.Minute);
+            if (enableDcaLevel3)
+                dcaLevels.Add(new DcaLevel { TriggerPercentage = dcaPercentage3, Quantity = dcaQuantity3, LevelNumber = 3 });
 
-            Log($"Range active: {rangeActive}");
-            Log($"Checking bar at {barTime.ToString("HH:mm")}, Range Start: {rangeStart.ToString("HH:mm")}, Range End: {rangeEnd.ToString("HH:mm")}");
+            // Sort DCA levels by trigger percentage in ascending order
+            dcaLevels = dcaLevels.OrderBy(d => d.TriggerPercentage).ToList();
 
-            // If the bar falls within the time range, track the high and low
+            Log("DCA levels initialized.", StrategyLoggingLevel.Trading);
+            foreach (var dca in dcaLevels)
+            {
+                Log($"DCA Level {dca.LevelNumber}: Trigger at {dca.TriggerPercentage * 100}% with quantity {dca.Quantity}", StrategyLoggingLevel.Trading);
+            }
+        }
+
+        private bool ValidateInputs()
+        {
+            if (symbol == null)
+            {
+                Log("Symbol is not specified.", StrategyLoggingLevel.Error);
+                Stop();
+                return false;
+            }
+
+            if (account == null)
+            {
+                Log("Account is not specified.", StrategyLoggingLevel.Error);
+                Stop();
+                return false;
+            }
+
+            if (symbol.ConnectionId != account.ConnectionId)
+            {
+                Log("Symbol and Account have different connection IDs.", StrategyLoggingLevel.Error);
+                Stop();
+                return false;
+            }
+
+            // Validate that DCA trigger percentages are less than stop loss percentage
+            foreach (var dcaLevel in new[] { new { Enabled = enableDcaLevel1, Percentage = dcaPercentage1, Level = 1 },
+                                             new { Enabled = enableDcaLevel2, Percentage = dcaPercentage2, Level = 2 },
+                                             new { Enabled = enableDcaLevel3, Percentage = dcaPercentage3, Level = 3 } })
+            {
+                if (dcaLevel.Enabled && dcaLevel.Percentage >= stopLossPercentage)
+                {
+                    Log($"DCA Level {dcaLevel.Level} trigger percentage ({dcaLevel.Percentage * 100}%) must be less than Stop Loss percentage ({stopLossPercentage * 100}%).", StrategyLoggingLevel.Error);
+                    Stop();
+                    return false;
+                }
+            }
+
+            // Validate that closePositionsAt is after detectionEndTime
+            if (closePositionsAt.TimeOfDay <= detectionEndTime.TimeOfDay)
+            {
+                Log("Close Positions At time must be after the Detection End Time.", StrategyLoggingLevel.Error);
+                Stop();
+                return false;
+            }
+
+            Log("Input parameters validated.", StrategyLoggingLevel.Trading);
+            return true;
+        }
+
+        private void OnNewHistoryItem(object sender, HistoryEventArgs e)
+        {
+            if (!(e.HistoryItem is HistoryItemBar bar)) return;
+
+            DateTime barTime = bar.TimeLeft.ToLocalTime();
+            UpdateRangeTimes(barTime.Date);
+
+            Log($"New bar at {barTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+
+            switch (strategyStatus)
+            {
+                case Status.WaitingForRange:
+                    UpdateRange(bar);
+                    break;
+                case Status.BreakoutDetection:
+                    DetectBreakout();
+                    break;
+                case Status.ManagingTrade:
+                    MonitorTrade();
+                    break;
+            }
+        }
+
+        private void UpdateRangeTimes(DateTime date)
+        {
+            rangeStart = new DateTime(date.Year, date.Month, date.Day, startTime.Hour, startTime.Minute, startTime.Second, DateTimeKind.Local);
+            rangeEnd = new DateTime(date.Year, date.Month, date.Day, endTime.Hour, endTime.Minute, endTime.Second, DateTimeKind.Local);
+            detectionStart = new DateTime(date.Year, date.Month, date.Day, detectionStartTime.Hour, detectionStartTime.Minute, detectionStartTime.Second, DateTimeKind.Local);
+            detectionEnd = new DateTime(date.Year, date.Month, date.Day, detectionEndTime.Hour, detectionEndTime.Minute, detectionEndTime.Second, DateTimeKind.Local);
+
+            if (detectionStart < rangeEnd)
+                detectionStart = rangeEnd;
+
+            // Update closePositionsAt to the same date
+            closePositionsAt = new DateTime(date.Year, date.Month, date.Day, closePositionsAt.Hour, closePositionsAt.Minute, closePositionsAt.Second, DateTimeKind.Local);
+
+            Log($"Range times updated. Range Start: {rangeStart:HH:mm}, Range End: {rangeEnd:HH:mm}, Detection Start: {detectionStart:HH:mm}, Detection End: {detectionEnd:HH:mm}, Close Positions At: {closePositionsAt:HH:mm}", StrategyLoggingLevel.Trading);
+        }
+
+        private void UpdateRange(HistoryItemBar bar)
+        {
+            DateTime barTime = bar.TimeLeft.ToLocalTime();
             if (barTime >= rangeStart && barTime <= rangeEnd)
             {
-                rangeActive = true;
-                if (e.HistoryItem[PriceType.High] > rangeHigh)
-                    rangeHigh = e.HistoryItem[PriceType.High];
-                if (e.HistoryItem[PriceType.Low] < rangeLow)
-                    rangeLow = e.HistoryItem[PriceType.Low];
+                rangeHigh = rangeHigh.HasValue ? Math.Max(rangeHigh.Value, bar.High) : bar.High;
+                rangeLow = rangeLow.HasValue ? Math.Min(rangeLow.Value, bar.Low) : bar.Low;
 
-                Log($"Tracking: High = {rangeHigh}, Low = {rangeLow}");
+                Log($"Range updated. High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
 
-                this.numberDCA = 0;
+                numberDCA = 0;
             }
-            else if (rangeActive && barTime > rangeEnd)
+            else if (barTime > rangeEnd)
             {
-                // Once the range ends, log the range details and reset for the next day
-                Log($"Range box for {today.ToShortDateString()} drawn from {rangeStart.ToString("HH:mm")} to {rangeEnd.ToString("HH:mm")}, High: {rangeHigh}, Low: {rangeLow}");
-                rangeActive = false;
+                Log($"Range detection ended. Final Range - High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
+                strategyStatus = Status.BreakoutDetection;
             }
+        }
 
-            if (barTime >= detectionStart && barTime <= detectionEnd)
+        private void DetectBreakout()
+        {
+            if (historicalData.Count < 2) return;
+
+            var previousBar = historicalData[1] as HistoryItemBar;
+            if (previousBar == null) return;
+
+            DateTime previousBarTime = previousBar.TimeLeft.ToLocalTime();
+
+            Log($"Checking for breakout at {previousBarTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+
+            if (previousBarTime >= detectionStart && previousBarTime <= detectionEnd)
             {
-                detectionActive = true;
-
-                // Detectar ruptura por encima o por debajo del rango usando el precio de cierre
-                double closePrice = e.HistoryItem[PriceType.Close];
-
-                if (closePrice > rangeHigh)
+                if (rangeHigh.HasValue && previousBar.Close > rangeHigh.Value)
                 {
-                    PlaceTrade(Side.Sell);  // Short con TP en el rango bajo
+                    Log($"Breakout above range high detected at {previousBar.Close}.", StrategyLoggingLevel.Trading);
+                    PlaceTrade(Side.Sell);
+                    strategyStatus = Status.ManagingTrade;
                 }
-                else if (closePrice < rangeLow)
+                else if (rangeLow.HasValue && previousBar.Close < rangeLow.Value)
                 {
-                    PlaceTrade(Side.Buy);  // Long con TP en el rango alto
+                    Log($"Breakout below range low detected at {previousBar.Close}.", StrategyLoggingLevel.Trading);
+                    PlaceTrade(Side.Buy);
+                    strategyStatus = Status.ManagingTrade;
+                }
+                else
+                {
+                    Log("No breakout detected.", StrategyLoggingLevel.Trading);
                 }
             }
-            else if (detectionActive && barTime > detectionEnd)
+            else if (previousBarTime > detectionEnd)
             {
-                detectionActive = false;
-                ResetRange();
+                Log("Detection period ended without breakout.", StrategyLoggingLevel.Trading);
+                ResetStrategy();
+            }
+        }
+
+        private void MonitorTrade()
+        {
+            if (currentPosition == null) return;
+
+            DateTime now = DateTime.Now.ToLocalTime();
+
+            // Check if current time is beyond the position closure time
+            if (now >= closePositionsAt)
+            {
+                Log("Closing position due to trading session end.", StrategyLoggingLevel.Trading);
+                ClosePosition();
+                ResetStrategy();
+                return;
+            }
+
+            double currentPrice = currentPosition.CurrentPrice;
+
+            foreach (var dcaLevel in dcaLevels)
+            {
+                if (dcaLevel.Executed) continue;
+
+                double triggerPrice = currentPosition.Side == Side.Buy
+                    ? currentPosition.OpenPrice * (1 - dcaLevel.TriggerPercentage)
+                    : currentPosition.OpenPrice * (1 + dcaLevel.TriggerPercentage);
+
+                if ((currentPosition.Side == Side.Buy && currentPrice <= triggerPrice)
+                    || (currentPosition.Side == Side.Sell && currentPrice >= triggerPrice))
+                {
+                    dcaLevel.Executed = true;
+                    numberDCA++;
+                    Log($"DCA Level {dcaLevel.LevelNumber} triggered at price {currentPrice}.", StrategyLoggingLevel.Trading);
+                    PlaceDCAOrder(dcaLevel.Quantity);
+                }
             }
         }
 
         private void PlaceTrade(Side side)
         {
+            Log($"Placing {side} trade.", StrategyLoggingLevel.Trading);
+
             var result = Core.Instance.PlaceOrder(new PlaceOrderRequestParameters
             {
-                Symbol = this.symbol,
-                Account = this.account,
+                Symbol = symbol,
+                Account = account,
                 Side = side,
                 OrderTypeId = OrderType.Market,
                 Quantity = 1,
             });
 
-            Log(result.Status == TradingOperationResultStatus.Failure ? "Error al colocar la orden." : "Orden colocada exitosamente.");
+            if (result.Status == TradingOperationResultStatus.Failure)
+                Log($"Failed to place order: {result.Message}", StrategyLoggingLevel.Error);
+            else
+                Log("Order placed successfully.", StrategyLoggingLevel.Trading);
         }
 
-        private void CheckDCA()
+        private void PlaceDCAOrder(double quantity)
         {
-            if (this.currentPosition == null)
+            Log($"Placing DCA order with quantity {quantity}.", StrategyLoggingLevel.Trading);
+
+            var result = Core.Instance.PlaceOrder(new PlaceOrderRequestParameters
             {
-                return;
-            }
+                Symbol = symbol,
+                Account = account,
+                Side = currentPosition.Side,
+                OrderTypeId = OrderType.Market,
+                Quantity = quantity,
+            });
 
-            // Usar Ask para compras y Bid para ventas
-            double currentPrice = this.currentPosition.Side == Side.Buy ? this.symbol.Ask : this.symbol.Bid;
-
-            // Calcular el precio de activación del DCA
-            double dcaTriggerPrice1 = this.currentPosition.Side == Side.Buy ? this.currentPosition.OpenPrice * (1 - dcaPercentage1) : this.currentPosition.OpenPrice * (1 + dcaPercentage1);
-
-            // Si el precio alcanza el nivel para hacer DCA
-            if ((this.currentPosition.Side == Side.Buy && currentPrice <= dcaTriggerPrice1) || (this.currentPosition.Side == Side.Sell && currentPrice >= dcaTriggerPrice1))
+            if (result.Status == TradingOperationResultStatus.Failure)
+                Log($"Failed to place DCA order: {result.Message}", StrategyLoggingLevel.Error);
+            else
             {
-                this.numberDCA++;
-
-                // Abrir nueva operación DCA
-                Log("DCA activado. Abriendo nueva operación...");
-
-                var result = Core.Instance.PlaceOrder(new PlaceOrderRequestParameters
-                {
-                    Symbol = this.symbol,
-                    Account = this.account,
-                    Side = this.currentPosition.Side,
-                    OrderTypeId = OrderType.Market,
-                    Quantity = dcaQuantity1,
-                });
-
-                Log(result.Status == TradingOperationResultStatus.Failure ? "Error al colocar la orden DCA." : "Orden DCA colocada exitosamente.");
-
-                // Update take profit after DCA
-                if (this.numberDCA == this.numberDCAToBE)
-                {
-                    this.PlaceCloseOrder(this.currentPosition, CloseOrderType.TakeProfit);
-                }
-              
+                Log($"DCA order of {quantity} placed successfully.", StrategyLoggingLevel.Trading);
+                UpdateCloseOrders();
             }
         }
 
-        private void CoreOnPositionAdded(Position position)
+        private void ClosePosition()
         {
-            if (this.currentPosition != null)
-                return;
+            if (currentPosition == null) return;
 
-            this.currentPosition = position;
+            Log("Closing current position.", StrategyLoggingLevel.Trading);
 
-            // Recalculate size of SL
-            this.PlaceCloseOrder(this.currentPosition, CloseOrderType.StopLoss);
-            this.PlaceCloseOrder(this.currentPosition, CloseOrderType.TakeProfit);
+            var result = Core.Instance.ClosePosition(currentPosition);
+            if (result.Status == TradingOperationResultStatus.Failure)
+                Log($"Failed to close position: {result.Message}", StrategyLoggingLevel.Error);
+            else
+                Log("Position closed successfully.", StrategyLoggingLevel.Trading);
+
+            currentPosition = null;
         }
 
-        private void PlaceCloseOrder(Position position, CloseOrderType closeOrderType)
+        private void OnPositionAdded(Position position)
         {
+            if (position.Symbol != symbol || position.Account != account) return;
+            if (currentPosition != null) return;
+
+            currentPosition = position;
+
+            Log($"New position added. Side: {position.Side}, Quantity: {position.Quantity}, Open Price: {position.OpenPrice}", StrategyLoggingLevel.Trading);
+
+            UpdateCloseOrders();
+        }
+
+        private void UpdateCloseOrders()
+        {
+            Log("Updating Stop Loss and Take Profit orders.", StrategyLoggingLevel.Trading);
+            PlaceOrUpdateCloseOrder(CloseOrderType.StopLoss);
+            PlaceOrUpdateCloseOrder(CloseOrderType.TakeProfit);
+        }
+
+        private void PlaceOrUpdateCloseOrder(CloseOrderType closeOrderType)
+        {
+            if (currentPosition == null) return;
+
             var request = new PlaceOrderRequestParameters
             {
-                Symbol = this.symbol,
-                Account = this.account,
-                Side = position.Side == Side.Buy ? Side.Sell : Side.Buy,
-                Quantity = position.Quantity, // This will update the quantity of the new orders to the current amount (initial and after DCA)
-                PositionId = position.Id,
+                Symbol = symbol,
+                Account = account,
+                Side = currentPosition.Side.Invert(),
+                Quantity = currentPosition.Quantity,
+                PositionId = currentPosition.Id,
                 AdditionalParameters = new List<SettingItem>
                 {
                     new SettingItemBoolean(OrderType.REDUCE_ONLY, true)
@@ -272,134 +500,174 @@ namespace BoomerangQT
 
             if (closeOrderType == CloseOrderType.StopLoss)
             {
-                var orderType = this.symbol.GetAlowedOrderTypes(OrderTypeUsage.CloseOrder).FirstOrDefault(ot => ot.Behavior == OrderTypeBehavior.Stop);
-
+                var orderType = symbol.GetOrderType(OrderTypeBehavior.Stop);
                 if (orderType == null)
                 {
-                    this.LogError("Can't find order type for SL");
+                    Log("Stop order type not found.", StrategyLoggingLevel.Error);
                     return;
                 }
 
                 request.OrderTypeId = orderType.Id;
-
-                // Calcular el SL como un porcentaje del precio de entrada para compras y ventas
-                double stopLoss = position.OpenPrice * (1 + (position.Side == Side.Sell ? stopLossPercentage : -stopLossPercentage));
-
-                if (position.StopLoss is Order)
-                {
-                    var cancelResult = Core.Instance.CancelOrder(position.StopLoss);
-                    if (cancelResult.Status == TradingOperationResultStatus.Failure)
-                    {
-                        Log($"Failed to cancel order {position.StopLoss.Id}. Cannot proceed with update.");
-                        return;
-                    }
-                    Log($"Order {position.StopLoss.Id} canceled successfully.");
-                }
-
-                request.TriggerPrice = stopLoss;
+                request.TriggerPrice = CalculateStopLossPrice();
+                CancelExistingOrder(currentPosition.StopLoss);
+                Log($"Placing Stop Loss at {request.TriggerPrice}", StrategyLoggingLevel.Trading);
             }
             else
             {
-                var orderType = this.symbol.GetAlowedOrderTypes(OrderTypeUsage.CloseOrder).FirstOrDefault(ot => ot.Behavior == OrderTypeBehavior.Limit);
-
+                var orderType = symbol.GetOrderType(OrderTypeBehavior.Limit);
                 if (orderType == null)
                 {
-                    this.LogError("Can't find order type for TP");
+                    Log("Limit order type not found.", StrategyLoggingLevel.Error);
                     return;
                 }
 
                 request.OrderTypeId = orderType.Id;
-
-                if (position.TakeProfit is Order)
-                {
-                    var cancelResult = Core.Instance.CancelOrder(position.TakeProfit);
-                    if (cancelResult.Status == TradingOperationResultStatus.Failure)
-                    {
-                        Log($"Failed to cancel order {position.TakeProfit.Id}. Cannot proceed with update.");
-                        return;
-                    }
-                    Log($"Order {position.TakeProfit.Id} canceled successfully.");
-                }
-
-                if (this.numberDCA >= this.numberDCAToBE)
-                {
-                    request.Price = position.Side == Side.Buy ? position.OpenPrice + this.CalculateTicksForCommissions() : position.OpenPrice - this.CalculateTicksForCommissions();
-                } 
-                else
-                {
-                    request.Price = position.Side == Side.Buy ? rangeLow : rangeHigh;
-                }
+                request.Price = CalculateTakeProfitPrice();
+                CancelExistingOrder(currentPosition.TakeProfit);
+                Log($"Placing Take Profit at {request.Price}", StrategyLoggingLevel.Trading);
             }
 
-            var result = Core.PlaceOrder(request);
-
+            var result = Core.Instance.PlaceOrder(request);
             if (result.Status == TradingOperationResultStatus.Failure)
-                this.LogError(result.Message);
+                Log($"Failed to place {closeOrderType} order: {result.Message}", StrategyLoggingLevel.Error);
+            else
+                Log($"{closeOrderType} order placed successfully.", StrategyLoggingLevel.Trading);
+        }
+
+        private void CancelExistingOrder(Order existingOrder)
+        {
+            if (existingOrder != null)
+            {
+                Log($"Cancelling existing order ID: {existingOrder.Id}", StrategyLoggingLevel.Trading);
+
+                var cancelResult = Core.Instance.CancelOrder(existingOrder);
+                if (cancelResult.Status == TradingOperationResultStatus.Failure)
+                    Log($"Failed to cancel existing order: {cancelResult.Message}", StrategyLoggingLevel.Error);
+                else
+                    Log("Existing order cancelled successfully.", StrategyLoggingLevel.Trading);
+            }
+        }
+
+        private double CalculateStopLossPrice()
+        {
+            double stopLossPrice = currentPosition.Side == Side.Buy
+                ? currentPosition.OpenPrice * (1 - stopLossPercentage)
+                : currentPosition.OpenPrice * (1 + stopLossPercentage);
+
+            Log($"Calculated Stop Loss Price: {stopLossPrice}", StrategyLoggingLevel.Trading);
+
+            return stopLossPrice;
+        }
+
+        private double CalculateTakeProfitPrice()
+        {
+            double takeProfitPrice;
+
+            if (enableBreakEven && (numberDCA >= numberDCAToBE || currentPosition.IsBreakevenPossible()))
+            {
+                double adjustment = CalculateTicksForCommissions();
+                takeProfitPrice = currentPosition.Side == Side.Buy
+                    ? currentPosition.OpenPrice + adjustment
+                    : currentPosition.OpenPrice - adjustment;
+
+                Log($"Adjusted Take Profit to break-even price: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+            }
+            else
+            {
+                takeProfitPrice = currentPosition.Side == Side.Buy ? (rangeHigh ?? currentPosition.OpenPrice) : (rangeLow ?? currentPosition.OpenPrice);
+                Log($"Set Take Profit to target price: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+            }
+
+            return takeProfitPrice;
         }
 
         private double CalculateTicksForCommissions()
         {
-            double tickSize = this.symbol.TickSize;
-            int ticksForCommissions = 4;  // Ajusta el número de ticks para cubrir comisiones
-            return tickSize * ticksForCommissions;
+            double ticksForCommissions = symbol.TickSize * 4; // Adjust ticks as needed
+            Log($"Calculated ticks for commissions: {ticksForCommissions}", StrategyLoggingLevel.Trading);
+            return ticksForCommissions;
         }
 
-        private void ResetRange()
+        private void ResetStrategy()
         {
-            rangeHigh = double.MinValue;
-            rangeLow = double.MaxValue;
-            rangeActive = false;
+            Log("Resetting strategy for the next trading session.", StrategyLoggingLevel.Trading);
+
+            rangeHigh = null;
+            rangeLow = null;
+            currentPosition = null;
+            numberDCA = 0;
+            strategyStatus = Status.WaitingForRange;
+
+            // Reset DCA levels
+            foreach (var dcaLevel in dcaLevels)
+            {
+                dcaLevel.Executed = false;
+            }
+
+            Log("Strategy reset complete.", StrategyLoggingLevel.Trading);
         }
 
-        /// <summary>
-        /// This function will be called after stopping a strategy
-        /// </summary>
         protected override void OnStop()
         {
-            if (this.symbol != null)
-            {
-                this.symbol.NewQuote -= SymbolOnNewQuote;
-                this.symbol.NewLast -= SymbolOnNewLast;
-            }
+            Log("Strategy is stopping.", StrategyLoggingLevel.Trading);
 
             if (historicalData != null)
             {
-                historicalData.NewHistoryItem -= OnBarClosed;
+                historicalData.NewHistoryItem -= OnNewHistoryItem;
+                historicalData.Dispose();
+                historicalData = null;
             }
 
-            // Add your code here
+            Core.PositionAdded -= OnPositionAdded;
+            base.OnStop();
         }
 
-        /// <summary>
-        /// This function will be called after removing a strategy
-        /// </summary>
-        protected override void OnRemove()
-        {
-            this.symbol = null;
-            this.account = null;
-            // Add your code here
-        }
-
-        /// <summary>
-        /// Use this method to provide run time information about your strategy. You will see it in StrategyRunner panel in trading terminal
-        /// </summary>
         protected override void OnInitializeMetrics(Meter meter)
         {
             base.OnInitializeMetrics(meter);
 
-            meter.CreateObservableCounter("range-active", () => this.rangeActive, description: "Range Active");
-            meter.CreateObservableCounter("detection-active", () => this.detectionActive, description: "Detection Active");
+            meter.CreateObservableGauge("RangeLow", GetRangeLow);
+            meter.CreateObservableGauge("RangeHigh", GetRangeHigh);
+            meter.CreateObservableGauge("CurrentPnL", GetCurrentPnL);
+            meter.CreateObservableGauge("StrategyStatus", () => (double)strategyStatus);
         }
 
-        private void SymbolOnNewQuote(Symbol symbol, Quote quote)
+        private double GetRangeLow()
         {
-            // Add your code here
+            return rangeLow ?? 0.0;
         }
 
-        private void SymbolOnNewLast(Symbol symbol, Last last)
+        private double GetRangeHigh()
         {
-            // Add your code here
-            this.CheckDCA();
+            return rangeHigh ?? 0.0;
+        }
+
+        private double GetCurrentPnL()
+        {
+            return currentPosition?.NetPnL.Value ?? 0.0;
+        }
+
+        // DCA Level class
+        private class DcaLevel
+        {
+            public int LevelNumber { get; set; }
+            public double TriggerPercentage { get; set; }
+            public double Quantity { get; set; }
+            public bool Executed { get; set; } = false;
+        }
+    }
+
+    public static class Extensions
+    {
+        public static Side Invert(this Side side)
+        {
+            return side == Side.Buy ? Side.Sell : Side.Buy;
+        }
+
+        public static OrderType GetOrderType(this Symbol symbol, OrderTypeBehavior behavior)
+        {
+            return symbol.GetAlowedOrderTypes(OrderTypeUsage.CloseOrder)
+                .FirstOrDefault(ot => ot.Behavior == behavior);
         }
     }
 }
