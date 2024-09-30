@@ -55,7 +55,7 @@ namespace BoomerangQT
 
         // DCA Level 1 Parameters
         [InputParameter("Enable DCA Level 1", 100)]
-        public bool enableDcaLevel1 = true;
+        public bool enableDcaLevel1 = false;
 
         [InputParameter("DCA Level 1 Trigger Percentage", 101)]
         public double dcaPercentage1 = 0.15;
@@ -192,7 +192,8 @@ namespace BoomerangQT
                         break;
                 }
 
-                historicalData = symbol.GetHistory(selectedPeriod, DateTime.UtcNow);
+                historicalData = symbol.GetHistory(selectedPeriod, DateTime.UtcNow.ToLocalTime());
+
                 if (historicalData == null)
                 {
                     Log("Failed to get historical data.", StrategyLoggingLevel.Error);
@@ -283,7 +284,7 @@ namespace BoomerangQT
                 }
 
                 // Validate that closePositionsAt is after detectionEndTime
-                if (closePositionsAt.TimeOfDay <= detectionEndTime.TimeOfDay)
+                if (closePositionsAt.TimeOfDay < detectionEndTime.TimeOfDay)
                 {
                     Log("Close Positions At time must be after the Detection End Time.", StrategyLoggingLevel.Error);
                     return false;
@@ -358,11 +359,22 @@ namespace BoomerangQT
         {
             try
             {
-                DateTime barTime = bar.TimeLeft.ToLocalTime();
+                HistoryItemBar previousClosedBar = bar;
+                // We check if previous candle is a different time than the current which will mean previous is closed
+                Log($"{historicalData.Count}");
+                if (historicalData.Count > 1)
+                {
+
+                    previousClosedBar = historicalData[1] as HistoryItemBar;
+                    //Log($"Time closed bar: {previousClosedBar.TimeLeft}");
+                    // Log($"PreviousClosedBar Open: {previousClosedBar[PriceType.Open]} Close: {previousClosedBar[PriceType.Close]} High: {previousClosedBar[PriceType.High]} Low: {previousClosedBar[PriceType.Low]}");
+                }
+                DateTime barTime = previousClosedBar.TimeLeft.ToLocalTime();
+
                 if (barTime >= rangeStart && barTime <= rangeEnd)
                 {
-                    rangeHigh = rangeHigh.HasValue ? Math.Max(rangeHigh.Value, bar.High) : bar.High;
-                    rangeLow = rangeLow.HasValue ? Math.Min(rangeLow.Value, bar.Low) : bar.Low;
+                    rangeHigh = rangeHigh.HasValue ? Math.Max(rangeHigh.Value, previousClosedBar[PriceType.High]) : previousClosedBar[PriceType.High];
+                    rangeLow = rangeLow.HasValue ? Math.Min(rangeLow.Value, previousClosedBar[PriceType.Low]) : previousClosedBar[PriceType.Low];
 
                     Log($"Range updated. High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
 
