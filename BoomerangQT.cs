@@ -304,12 +304,17 @@ namespace BoomerangQT
         {
             try
             {
-                if (!(e.HistoryItem is HistoryItemBar bar)) return;
+                
+                if (!(e.HistoryItem is HistoryItemBar currentBar)) return;
+                if (historicalData.Count <= 1) return;
 
+                HistoryItemBar bar = historicalData[1] as HistoryItemBar; // We take the previous candle which is properly closed
                 DateTime barTime = bar.TimeLeft.ToLocalTime();
+
                 UpdateRangeTimes(barTime.Date);
 
-                Log($"New bar at {barTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"New bar properly closed at {barTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"strategyStatus: {strategyStatus}");
 
                 switch (strategyStatus)
                 {
@@ -317,10 +322,10 @@ namespace BoomerangQT
                         UpdateRange(bar);
                         break;
                     case Status.BreakoutDetection:
-                        DetectBreakout();
+                        DetectBreakout(bar);
                         break;
                     case Status.ManagingTrade:
-                        MonitorTrade();
+                        MonitorTrade(bar);
                         break;
                 }
             }
@@ -359,22 +364,12 @@ namespace BoomerangQT
         {
             try
             {
-                HistoryItemBar previousClosedBar = bar;
-                // We check if previous candle is a different time than the current which will mean previous is closed
-                Log($"{historicalData.Count}");
-                if (historicalData.Count > 1)
-                {
-
-                    previousClosedBar = historicalData[1] as HistoryItemBar;
-                    //Log($"Time closed bar: {previousClosedBar.TimeLeft}");
-                    // Log($"PreviousClosedBar Open: {previousClosedBar[PriceType.Open]} Close: {previousClosedBar[PriceType.Close]} High: {previousClosedBar[PriceType.High]} Low: {previousClosedBar[PriceType.Low]}");
-                }
-                DateTime barTime = previousClosedBar.TimeLeft.ToLocalTime();
+                DateTime barTime = bar.TimeLeft.ToLocalTime();
 
                 if (barTime >= rangeStart && barTime <= rangeEnd)
                 {
-                    rangeHigh = rangeHigh.HasValue ? Math.Max(rangeHigh.Value, previousClosedBar[PriceType.High]) : previousClosedBar[PriceType.High];
-                    rangeLow = rangeLow.HasValue ? Math.Min(rangeLow.Value, previousClosedBar[PriceType.Low]) : previousClosedBar[PriceType.Low];
+                    rangeHigh = rangeHigh.HasValue ? Math.Max(rangeHigh.Value, bar[PriceType.High]) : bar[PriceType.High];
+                    rangeLow = rangeLow.HasValue ? Math.Min(rangeLow.Value, bar[PriceType.Low]) : bar[PriceType.Low];
 
                     Log($"Range updated. High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
 
@@ -385,6 +380,7 @@ namespace BoomerangQT
                     Log($"Range detection ended. Final Range - High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
                     strategyStatus = Status.BreakoutDetection;
                 }
+
             }
             catch (Exception ex)
             {
@@ -393,30 +389,25 @@ namespace BoomerangQT
             }
         }
 
-        private void DetectBreakout()
+        private void DetectBreakout(HistoryItemBar bar)
         {
             try
             {
-                if (historicalData.Count < 2) return;
+                DateTime barTime = bar.TimeLeft.ToLocalTime();
 
-                var previousBar = historicalData[1] as HistoryItemBar;
-                if (previousBar == null) return;
+                Log($"Checking for breakout at {barTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
 
-                DateTime previousBarTime = previousBar.TimeLeft.ToLocalTime();
-
-                Log($"Checking for breakout at {previousBarTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-
-                if (previousBarTime >= detectionStart && previousBarTime <= detectionEnd)
+                if (barTime >= detectionStart && barTime <= detectionEnd)
                 {
-                    if (rangeHigh.HasValue && previousBar.Close > rangeHigh.Value)
+                    if (rangeHigh.HasValue && bar.Close > rangeHigh.Value)
                     {
-                        Log($"Breakout above range high detected at {previousBar.Close}.", StrategyLoggingLevel.Trading);
+                        Log($"Breakout above range high detected at {bar.Close}.", StrategyLoggingLevel.Trading);
                         PlaceTrade(Side.Sell);
                         strategyStatus = Status.ManagingTrade;
                     }
-                    else if (rangeLow.HasValue && previousBar.Close < rangeLow.Value)
+                    else if (rangeLow.HasValue && bar.Close < rangeLow.Value)
                     {
-                        Log($"Breakout below range low detected at {previousBar.Close}.", StrategyLoggingLevel.Trading);
+                        Log($"Breakout below range low detected at {bar.Close}.", StrategyLoggingLevel.Trading);
                         PlaceTrade(Side.Buy);
                         strategyStatus = Status.ManagingTrade;
                     }
@@ -425,7 +416,7 @@ namespace BoomerangQT
                         Log("No breakout detected.", StrategyLoggingLevel.Trading);
                     }
                 }
-                else if (previousBarTime > detectionEnd)
+                else if (barTime > detectionEnd)
                 {
                     Log("Detection period ended without breakout.", StrategyLoggingLevel.Trading);
                     ResetStrategy();
@@ -438,22 +429,24 @@ namespace BoomerangQT
             }
         }
 
-        private void MonitorTrade()
+        private void MonitorTrade(HistoryItemBar bar)
         {
             try
             {
-                if (currentPosition == null) return;
+                if (currentPosition == null) return; // Maybe we should clean up any open order, but maybe they are closed with the position as well... lets see
 
-                DateTime now = DateTime.Now.ToLocalTime();
+                DateTime barTime = bar.TimeLeft.ToLocalTime();
 
                 // Check if current time is beyond the position closure time
-                if (now >= closePositionsAt)
+                if (barTime >= closePositionsAt)
                 {
                     Log("Closing position due to trading session end.", StrategyLoggingLevel.Trading);
                     ClosePosition();
                     ResetStrategy();
                     return;
                 }
+
+                return;
 
                 double currentPrice = currentPosition.CurrentPrice;
 
@@ -566,6 +559,8 @@ namespace BoomerangQT
         {
             try
             {
+                Log($"We enter on the event OnPositionAdded");
+
                 if (position.Symbol != symbol || position.Account != account) return;
                 if (currentPosition != null) return;
 
@@ -684,9 +679,13 @@ namespace BoomerangQT
         {
             try
             {
+                Log($"OpenPrice: {currentPosition.OpenPrice}");
+                Log($"Side: {currentPosition.Side}");
+                Log($"stopLossPercentage: {stopLossPercentage}");
+
                 double stopLossPrice = currentPosition.Side == Side.Buy
-                    ? currentPosition.OpenPrice * (1 - stopLossPercentage)
-                    : currentPosition.OpenPrice * (1 + stopLossPercentage);
+                    ? currentPosition.OpenPrice - currentPosition.OpenPrice * (stopLossPercentage / 100)
+                    : currentPosition.OpenPrice + currentPosition.OpenPrice * (stopLossPercentage / 100);
 
                 Log($"Calculated Stop Loss Price: {stopLossPrice}", StrategyLoggingLevel.Trading);
 
@@ -844,7 +843,6 @@ namespace BoomerangQT
 
         public static OrderType GetOrderType(this Symbol symbol, OrderTypeBehavior behavior)
         {
-            // Corrected method name
             return symbol.GetAlowedOrderTypes(OrderTypeUsage.CloseOrder)
                 .FirstOrDefault(ot => ot.Behavior == behavior);
         }
