@@ -29,20 +29,51 @@ namespace BoomerangQT
         [InputParameter("Timeframe", 25, variants: new object[] { "1 Minute", "MIN1", "2 Minutes", "MIN2", "5 Minutes", "MIN5", "15 Minutes", "MIN15" })]
         public string timeframe = "MIN1";
 
+        [InputParameter("Time Zone", 5, variants: new object[] {
+            "UTC−12:00", -12,
+            "UTC−11:00", -11,
+            "UTC−10:00", -10,
+            "UTC−09:00", -9,
+            "UTC−08:00", -8,
+            "UTC−07:00", -7,
+            "UTC−06:00", -6,
+            "UTC−05:00", -5,
+            "UTC−04:00", -4,
+            "UTC−03:00", -3,
+            "UTC−02:00", -2,
+            "UTC−01:00", -1,
+            "UTC±00:00", 0,
+            "UTC+01:00", 1,
+            "UTC+02:00", 2,
+            "UTC+03:00", 3,
+            "UTC+04:00", 4,
+            "UTC+05:00", 5,
+            "UTC+06:00", 6,
+            "UTC+07:00", 7,
+            "UTC+08:00", 8,
+            "UTC+09:00", 9,
+            "UTC+10:00", 10,
+            "UTC+11:00", 11,
+            "UTC+12:00", 12,
+            "UTC+13:00", 13,
+            "UTC+14:00", 14
+        })]
+        public int timeZoneOffset = 0; // Default to UTC±00:00
+
         [InputParameter("Open of Range", 30)]
-        public DateTime startTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 12, 25, 0, DateTimeKind.Local);
+        public DateTime startTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 6, 25, 0, DateTimeKind.Local);
 
         [InputParameter("Close of Range", 40)]
-        public DateTime endTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 12, 30, 0, DateTimeKind.Local);
+        public DateTime endTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 6, 30, 0, DateTimeKind.Local);
 
         [InputParameter("Look for entry from", 50)]
-        public DateTime detectionStartTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 12, 30, 0, DateTimeKind.Local);
+        public DateTime detectionStartTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 6, 30, 0, DateTimeKind.Local);
 
         [InputParameter("Look for entry until", 60)]
-        public DateTime detectionEndTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 22, 0, 0, DateTimeKind.Local);
+        public DateTime detectionEndTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 6, 45, 0, DateTimeKind.Local);
 
         [InputParameter("Close Positions At", 70)]
-        public DateTime closePositionsAt = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 22, 0, 0, DateTimeKind.Local);
+        public DateTime closePositionsAtTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 7, 0, 0, DateTimeKind.Local);
 
         [InputParameter("Stop Loss Percentage", 80)]
         public double stopLossPercentage = 0.35;
@@ -86,6 +117,25 @@ namespace BoomerangQT
         public override string[] MonitoringConnectionsIds => symbol != null ? new[] { symbol.ConnectionId } : new string[0];
 
         // Override Settings to customize DateTime input parameters
+        
+
+        // Private variables
+        private HistoricalData historicalData;
+        private double? rangeHigh = null;
+        private double? rangeLow = null;
+        private DateTimeOffset rangeStart;
+        private DateTimeOffset rangeEnd;
+        private DateTimeOffset detectionStart;
+        private DateTimeOffset detectionEnd;
+        private DateTimeOffset closePositionsAt;
+        private Position currentPosition;
+        private TimeSpan selectedUtcOffset;
+        private int numberDCA;
+        private Status strategyStatus = Status.WaitingForRange;
+
+        // DCA levels list
+        private List<DcaLevel> dcaLevels = new List<DcaLevel>();
+
         public override IList<SettingItem> Settings
         {
             get
@@ -93,50 +143,18 @@ namespace BoomerangQT
                 var settings = base.Settings;
 
                 // Customize DateTime fields to show only times
-                if (settings.GetItemByName("Open of Range") is SettingItemDateTime startTimeSi)
+                foreach (var settingItem in settings)
                 {
-                    startTimeSi.Format = DatePickerFormat.LongTime;
-                }
-
-                if (settings.GetItemByName("Close of Range") is SettingItemDateTime endTimeSi)
-                {
-                    endTimeSi.Format = DatePickerFormat.LongTime;
-                }
-
-                if (settings.GetItemByName("Look for entry from") is SettingItemDateTime detectionStartTimeSi)
-                {
-                    detectionStartTimeSi.Format = DatePickerFormat.LongTime;
-                }
-
-                if (settings.GetItemByName("Look for entry until") is SettingItemDateTime detectionEndTimeSi)
-                {
-                    detectionEndTimeSi.Format = DatePickerFormat.LongTime;
-                }
-
-                if (settings.GetItemByName("Close Positions At") is SettingItemDateTime closePositionsAtSi)
-                {
-                    closePositionsAtSi.Format = DatePickerFormat.LongTime;
+                    if (settingItem is SettingItemDateTime dateTimeSetting)
+                    {
+                        dateTimeSetting.Format = DatePickerFormat.Time;
+                    }
                 }
 
                 return settings;
             }
             set { base.Settings = value; }
         }
-
-        // Private variables
-        private HistoricalData historicalData;
-        private double? rangeHigh = null;
-        private double? rangeLow = null;
-        private DateTime rangeStart;
-        private DateTime rangeEnd;
-        private DateTime detectionStart;
-        private DateTime detectionEnd;
-        private Position currentPosition;
-        private int numberDCA;
-        private Status strategyStatus = Status.WaitingForRange;
-
-        // DCA levels list
-        private List<DcaLevel> dcaLevels = new List<DcaLevel>();
 
         public BoomerangQT()
         {
@@ -146,6 +164,16 @@ namespace BoomerangQT
 
         protected override void OnRun()
         {
+            Log($"Timeoffset: {timeZoneOffset}");
+            Log($"StartTime: {startTime:HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"endTime: {endTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"detectionStartTime: {detectionStartTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"detectionEndTime: {detectionEndTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"ClosePositionsAt: {closePositionsAtTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+
+
+            selectedUtcOffset = TimeSpan.FromHours(timeZoneOffset);
+            Log($"Selected UTC Offset: {selectedUtcOffset.TotalHours} hours");
             try
             {
                 Log("Strategy is starting.", StrategyLoggingLevel.Trading);
@@ -192,7 +220,7 @@ namespace BoomerangQT
                         break;
                 }
 
-                historicalData = symbol.GetHistory(selectedPeriod, DateTime.UtcNow.ToLocalTime());
+                historicalData = symbol.GetHistory(selectedPeriod, DateTime.Now);
 
                 if (historicalData == null)
                 {
@@ -234,6 +262,7 @@ namespace BoomerangQT
                 dcaLevels = dcaLevels.OrderBy(d => d.TriggerPercentage).ToList();
 
                 Log("DCA levels initialized.", StrategyLoggingLevel.Trading);
+
                 foreach (var dca in dcaLevels)
                 {
                     Log($"DCA Level {dca.LevelNumber}: Trigger at {dca.TriggerPercentage * 100}% with quantity {dca.Quantity}", StrategyLoggingLevel.Trading);
@@ -283,13 +312,6 @@ namespace BoomerangQT
                     }
                 }
 
-                // Validate that closePositionsAt is after detectionEndTime
-                if (closePositionsAt.TimeOfDay < detectionEndTime.TimeOfDay)
-                {
-                    Log("Close Positions At time must be after the Detection End Time.", StrategyLoggingLevel.Error);
-                    return false;
-                }
-
                 Log("Input parameters validated.", StrategyLoggingLevel.Trading);
                 return true;
             }
@@ -304,17 +326,26 @@ namespace BoomerangQT
         {
             try
             {
-                
                 if (!(e.HistoryItem is HistoryItemBar currentBar)) return;
                 if (historicalData.Count <= 1) return;
 
                 HistoryItemBar bar = historicalData[1] as HistoryItemBar; // We take the previous candle which is properly closed
-                DateTime barTime = bar.TimeLeft.ToLocalTime();
+                DateTime barTime = bar.TimeLeft.AddHours(timeZoneOffset);
 
-                UpdateRangeTimes(barTime.Date);
+                DateTimeOffset newDateTimeOffset = new DateTimeOffset(
+                   barTime.Year,
+                   barTime.Month,
+                   barTime.Day,
+                   barTime.Hour,
+                   barTime.Minute,
+                   barTime.Second,
+                   selectedUtcOffset
+               );
 
                 Log($"New bar properly closed at {barTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
                 Log($"strategyStatus: {strategyStatus}");
+
+                UpdateRangeTimes(barTime.Date);
 
                 switch (strategyStatus)
                 {
@@ -340,18 +371,23 @@ namespace BoomerangQT
         {
             try
             {
-                rangeStart = new DateTime(date.Year, date.Month, date.Day, startTime.Hour, startTime.Minute, startTime.Second, DateTimeKind.Local);
-                rangeEnd = new DateTime(date.Year, date.Month, date.Day, endTime.Hour, endTime.Minute, endTime.Second, DateTimeKind.Local);
-                detectionStart = new DateTime(date.Year, date.Month, date.Day, detectionStartTime.Hour, detectionStartTime.Minute, detectionStartTime.Second, DateTimeKind.Local);
-                detectionEnd = new DateTime(date.Year, date.Month, date.Day, detectionEndTime.Hour, detectionEndTime.Minute, detectionEndTime.Second, DateTimeKind.Local);
+                TimeSpan selectedUtcOffset = TimeSpan.FromHours(timeZoneOffset);
+                //Log($"Selected UTC Offset: {selectedUtcOffset.TotalHours} hours");
+
+                // Combine the date with the input times, treating input times as local times without time zone conversions
+                rangeStart = new DateTimeOffset(date.Year, date.Month, date.Day, startTime.Hour, startTime.Minute, 0, selectedUtcOffset);
+                rangeEnd = new DateTimeOffset(date.Year, date.Month, date.Day, endTime.Hour, endTime.Minute, 0, selectedUtcOffset);
+                detectionStart = new DateTimeOffset(date.Year, date.Month, date.Day, detectionStartTime.Hour, detectionStartTime.Minute, 0, selectedUtcOffset);
+                detectionEnd = new DateTimeOffset(date.Year, date.Month, date.Day, detectionEndTime.Hour, detectionEndTime.Minute, 0, selectedUtcOffset);
+                closePositionsAt = new DateTimeOffset(date.Year, date.Month, date.Day, closePositionsAtTime.Hour, closePositionsAtTime.Minute, 0, selectedUtcOffset);
 
                 if (detectionStart < rangeEnd)
                     detectionStart = rangeEnd;
 
-                // Update closePositionsAt to the same date
-                closePositionsAt = new DateTime(date.Year, date.Month, date.Day, closePositionsAt.Hour, closePositionsAt.Minute, closePositionsAt.Second, DateTimeKind.Local);
+                if (closePositionsAt <= detectionEnd)
+                    closePositionsAt = closePositionsAt.AddDays(1);
 
-                Log($"Range times updated. Range Start: {rangeStart:HH:mm}, Range End: {rangeEnd:HH:mm}, Detection Start: {detectionStart:HH:mm}, Detection End: {detectionEnd:HH:mm}, Close Positions At: {closePositionsAt:HH:mm}", StrategyLoggingLevel.Trading);
+                Log($"Range times updated. Range Start: {rangeStart:yyyy-MM-dd HH:mm}, Range End: {rangeEnd:yyyy-MM-dd HH:mm}, Detection Start: {detectionStart:yyyy-MM-dd HH:mm}, Detection End: {detectionEnd:yyyy-MM-dd HH:mm}, Close Positions At: {closePositionsAt:yyyy-MM-dd HH:mm}", StrategyLoggingLevel.Trading);
             }
             catch (Exception ex)
             {
@@ -360,11 +396,12 @@ namespace BoomerangQT
             }
         }
 
+
         private void UpdateRange(HistoryItemBar bar)
         {
             try
             {
-                DateTime barTime = bar.TimeLeft.ToLocalTime();
+                DateTime barTime = bar.TimeLeft;
 
                 if (barTime >= rangeStart && barTime <= rangeEnd)
                 {
@@ -377,9 +414,20 @@ namespace BoomerangQT
                 }
                 else if (barTime > rangeEnd)
                 {
-                    Log($"Range detection ended. Final Range - High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
-                    strategyStatus = Status.BreakoutDetection;
+                    if (rangeHigh.HasValue && rangeLow.HasValue)
+                    {
+                        Log($"Range detection ended. Final Range - High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
+                        strategyStatus = Status.BreakoutDetection;
+                    }
+                    else
+                    {
+                        Log("No valid range detected during range period. Remaining in WaitingForRange.", StrategyLoggingLevel.Trading);
+                        // Optionally, you can reset the rangeHigh and rangeLow to null if needed
+                        rangeHigh = null;
+                        rangeLow = null;
+                    }
                 }
+
 
             }
             catch (Exception ex)
@@ -393,9 +441,11 @@ namespace BoomerangQT
         {
             try
             {
-                DateTime barTime = bar.TimeLeft.ToLocalTime();
+                DateTime barTime = bar.TimeLeft.ToUniversalTime();
 
                 Log($"Checking for breakout at {barTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"Detection Start {detectionStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Info);
+                Log($"Detection End at {detectionEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Info);
 
                 if (barTime >= detectionStart && barTime <= detectionEnd)
                 {
@@ -435,9 +485,13 @@ namespace BoomerangQT
             {
                 if (currentPosition == null) return; // Maybe we should clean up any open order, but maybe they are closed with the position as well... lets see
 
-                DateTime barTime = bar.TimeLeft.ToLocalTime();
+                DateTime barTime = bar.TimeLeft.ToUniversalTime();
 
                 // Check if current time is beyond the position closure time
+                Log($"barTime: {barTime:yyyy-MM-dd HH:mm:ss}");
+                Log($"closePositionsAt: {closePositionsAt:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Info);
+                
+
                 if (barTime >= closePositionsAt)
                 {
                     Log("Closing position due to trading session end.", StrategyLoggingLevel.Trading);
