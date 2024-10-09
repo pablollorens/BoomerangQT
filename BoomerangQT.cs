@@ -6,6 +6,7 @@ using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Linq;
 using TradingPlatform.BusinessLayer;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace BoomerangQT
 {
@@ -73,7 +74,7 @@ namespace BoomerangQT
         public DateTime detectionEndTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 6, 45, 0, DateTimeKind.Local);
 
         [InputParameter("Close Positions At", 70)]
-        public DateTime closePositionsAtTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 7, 0, 0, DateTimeKind.Local);
+        public DateTime closePositionsAtTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 16, 0, 0, DateTimeKind.Local);
 
         [InputParameter("Stop Loss Percentage", 80)]
         public double stopLossPercentage = 0.35;
@@ -116,8 +117,6 @@ namespace BoomerangQT
 
         public override string[] MonitoringConnectionsIds => symbol != null ? new[] { symbol.ConnectionId } : new string[0];
 
-        // Override Settings to customize DateTime input parameters
-        
 
         // Private variables
         private HistoricalData historicalData;
@@ -136,6 +135,7 @@ namespace BoomerangQT
         // DCA levels list
         private List<DcaLevel> dcaLevels = new List<DcaLevel>();
 
+        // Override Settings to customize DateTime input parameters
         public override IList<SettingItem> Settings
         {
             get
@@ -148,8 +148,20 @@ namespace BoomerangQT
                     if (settingItem is SettingItemDateTime dateTimeSetting)
                     {
                         dateTimeSetting.Format = DatePickerFormat.Time;
+
+                        //TimeZoneInfo localZone = TimeZoneInfo.Local;
+                        //TimeSpan localUtcOffset = localZone.GetUtcOffset((DateTime)dateTimeSetting.Value);
+                        //Log($"Local UTC Offset: {localUtcOffset.TotalHours} hours");
+
+                        //Log($"{dateTimeSetting.Value}, kind: {((DateTime)dateTimeSetting.Value).Kind}");
+
+                        //dateTimeSetting.Value = ((DateTime)dateTimeSetting.Value).ToLocalTime();
+
+                        //Log($"{dateTimeSetting.Value}, kind: {((DateTime)dateTimeSetting.Value).Kind}");
                     }
                 }
+
+                Log($"it's over!");
 
                 return settings;
             }
@@ -164,16 +176,43 @@ namespace BoomerangQT
 
         protected override void OnRun()
         {
-            Log($"Timeoffset: {timeZoneOffset}");
-            Log($"StartTime: {startTime:HH:mm:ss}", StrategyLoggingLevel.Trading);
-            Log($"endTime: {endTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            Log($"detectionStartTime: {detectionStartTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            Log($"detectionEndTime: {detectionEndTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            Log($"ClosePositionsAt: {closePositionsAtTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            startTime = startTime.ToLocalTime();
+            endTime = endTime.ToLocalTime();
+            detectionStartTime = detectionStartTime.ToLocalTime();
+            detectionEndTime = detectionEndTime.ToLocalTime();
+            closePositionsAtTime = closePositionsAtTime.ToLocalTime();
 
+            Log($"StartTime: {startTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
+            Log($"endTime: {endTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
+            Log($"detectionStartTime: {detectionStartTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
+            Log($"detectionEndTime: {detectionEndTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
+            Log($"ClosePositionsAt: {closePositionsAtTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
+
+            //Log($"BREAK");
 
             selectedUtcOffset = TimeSpan.FromHours(timeZoneOffset);
             Log($"Selected UTC Offset: {selectedUtcOffset.TotalHours} hours");
+
+            //startTime.AddHours(timeZoneOffset);
+            //endTime.AddHours(timeZoneOffset);
+            //detectionStartTime.AddHours(timeZoneOffset);
+            //detectionEndTime.AddHours(timeZoneOffset);
+            //closePositionsAtTime.AddHours(timeZoneOffset);
+
+            // Combine the date with the input times, treating input times as local times without time zone conversions
+            rangeStart = new DateTimeOffset(startTime.Year, startTime.Month, startTime.Day, startTime.Hour, startTime.Minute, 0, selectedUtcOffset);
+            rangeEnd = new DateTimeOffset(endTime.Year, endTime.Month, endTime.Day, endTime.Hour, endTime.Minute, 0, selectedUtcOffset);
+            detectionStart = new DateTimeOffset(detectionStartTime.Year, detectionStartTime.Month, detectionStartTime.Day, detectionStartTime.Hour, detectionStartTime.Minute, 0, selectedUtcOffset);
+            detectionEnd = new DateTimeOffset(detectionEndTime.Year, detectionEndTime.Month, detectionEndTime.Day, detectionEndTime.Hour, detectionEndTime.Minute, 0, selectedUtcOffset);
+            closePositionsAt = new DateTimeOffset(closePositionsAtTime.Year, closePositionsAtTime.Month, closePositionsAtTime.Day, closePositionsAtTime.Hour, closePositionsAtTime.Minute, 0, selectedUtcOffset);
+
+            Log($"Timeoffset: {timeZoneOffset}");
+            Log($"StartTime: {rangeStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"endTime: {rangeEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"detectionStartTime: {detectionStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"detectionEndTime: {detectionEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"ClosePositionsAt: {closePositionsAt:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+
             try
             {
                 Log("Strategy is starting.", StrategyLoggingLevel.Trading);
@@ -332,16 +371,6 @@ namespace BoomerangQT
                 HistoryItemBar bar = historicalData[1] as HistoryItemBar; // We take the previous candle which is properly closed
                 DateTime barTime = bar.TimeLeft.AddHours(timeZoneOffset);
 
-                DateTimeOffset newDateTimeOffset = new DateTimeOffset(
-                   barTime.Year,
-                   barTime.Month,
-                   barTime.Day,
-                   barTime.Hour,
-                   barTime.Minute,
-                   barTime.Second,
-                   selectedUtcOffset
-               );
-
                 Log($"New bar properly closed at {barTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
                 Log($"strategyStatus: {strategyStatus}");
 
@@ -380,6 +409,13 @@ namespace BoomerangQT
                 detectionStart = new DateTimeOffset(date.Year, date.Month, date.Day, detectionStartTime.Hour, detectionStartTime.Minute, 0, selectedUtcOffset);
                 detectionEnd = new DateTimeOffset(date.Year, date.Month, date.Day, detectionEndTime.Hour, detectionEndTime.Minute, 0, selectedUtcOffset);
                 closePositionsAt = new DateTimeOffset(date.Year, date.Month, date.Day, closePositionsAtTime.Hour, closePositionsAtTime.Minute, 0, selectedUtcOffset);
+
+                Log($"Timeoffset: {timeZoneOffset}");
+                Log($"StartTime: {rangeStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"endTime: {rangeEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"detectionStartTime: {detectionStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"detectionEndTime: {detectionEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"ClosePositionsAt: {closePositionsAt:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
 
                 if (detectionStart < rangeEnd)
                     detectionStart = rangeEnd;
@@ -541,7 +577,7 @@ namespace BoomerangQT
                     Account = account,
                     Side = side,
                     OrderTypeId = OrderType.Market,
-                    Quantity = 1,
+                    Quantity = 2,
                 });
 
                 if (result.Status == TradingOperationResultStatus.Failure)
@@ -593,6 +629,7 @@ namespace BoomerangQT
                 if (currentPosition == null) return;
 
                 Log("Closing current position.", StrategyLoggingLevel.Trading);
+                Log($"{currentPosition}");
 
                 var result = Core.Instance.ClosePosition(currentPosition);
                 if (result.Status == TradingOperationResultStatus.Failure)
