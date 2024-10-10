@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Linq;
+using System.Security.Principal;
 using TradingPlatform.BusinessLayer;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -76,6 +77,9 @@ namespace BoomerangQT
         [InputParameter("Close Positions At", 70)]
         public DateTime closePositionsAtTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 16, 0, 0, DateTimeKind.Local);
 
+        [InputParameter("Main entry quantity", 75)]
+        public int initialQuantity = 1;
+
         [InputParameter("Stop Loss Percentage", 80)]
         public double stopLossPercentage = 0.35;
 
@@ -131,6 +135,8 @@ namespace BoomerangQT
         private TimeSpan selectedUtcOffset;
         private int numberDCA;
         private Status strategyStatus = Status.WaitingForRange;
+        private string stopLossOrderId;
+        private string takeProfitOrderId;
 
         // DCA levels list
         private List<DcaLevel> dcaLevels = new List<DcaLevel>();
@@ -274,6 +280,7 @@ namespace BoomerangQT
 
                 historicalData.NewHistoryItem += OnNewHistoryItem;
                 Core.PositionAdded += OnPositionAdded;
+                Core.PositionRemoved += OnPositionRemoved;
             }
             catch (Exception ex)
             {
@@ -371,7 +378,7 @@ namespace BoomerangQT
                 HistoryItemBar bar = historicalData[1] as HistoryItemBar; // We take the previous candle which is properly closed
                 DateTime barTime = bar.TimeLeft.AddHours(timeZoneOffset);
 
-                Log($"New bar properly closed at {barTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"OnNewHistoryItem :: New bar properly closed at {barTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
                 Log($"strategyStatus: {strategyStatus}");
 
                 UpdateRangeTimes(barTime.Date);
@@ -439,6 +446,10 @@ namespace BoomerangQT
             {
                 DateTime barTime = bar.TimeLeft;
 
+                Log($"UpdateRange :: New bar properly closed at {barTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"UpdateRange :: rangeStart {rangeStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"UpdateRange :: rangeEnd {rangeEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+
                 if (barTime >= rangeStart && barTime <= rangeEnd)
                 {
                     rangeHigh = rangeHigh.HasValue ? Math.Max(rangeHigh.Value, bar[PriceType.High]) : bar[PriceType.High];
@@ -477,7 +488,9 @@ namespace BoomerangQT
         {
             try
             {
-                DateTime barTime = bar.TimeLeft.ToUniversalTime();
+                DateTime barTime = bar.TimeLeft;
+
+                Log($"DetectBreakout :: New bar properly closed at {barTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
 
                 Log($"Checking for breakout at {barTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
                 Log($"Detection Start {detectionStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Info);
@@ -519,9 +532,16 @@ namespace BoomerangQT
         {
             try
             {
-                if (currentPosition == null) return; // Maybe we should clean up any open order, but maybe they are closed with the position as well... lets see
+                if (currentPosition == null)
+                {
+                    Log("Position has been closed externally (TP or SL hit). Resetting strategy.", StrategyLoggingLevel.Trading);
+                    ResetStrategy();
+                    return;
+                }
 
-                DateTime barTime = bar.TimeLeft.ToUniversalTime();
+                DateTime barTime = bar.TimeLeft;
+
+                Log($"MonitorTrade :: New bar properly closed at {barTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
 
                 // Check if current time is beyond the position closure time
                 Log($"barTime: {barTime:yyyy-MM-dd HH:mm:ss}");
@@ -571,13 +591,16 @@ namespace BoomerangQT
             {
                 Log($"Placing {side} trade.", StrategyLoggingLevel.Trading);
 
+                // Ensure initialQuantity is above 0, otherwise use 1
+                var quantityToUse = initialQuantity > 0 ? initialQuantity : 1;
+
                 var result = Core.Instance.PlaceOrder(new PlaceOrderRequestParameters
                 {
                     Symbol = symbol,
                     Account = account,
                     Side = side,
                     OrderTypeId = OrderType.Market,
-                    Quantity = 2,
+                    Quantity = quantityToUse,
                 });
 
                 if (result.Status == TradingOperationResultStatus.Failure)
@@ -653,6 +676,7 @@ namespace BoomerangQT
                 Log($"We enter on the event OnPositionAdded");
 
                 if (position.Symbol != symbol || position.Account != account) return;
+
                 if (currentPosition != null) return;
 
                 currentPosition = position;
@@ -715,6 +739,15 @@ namespace BoomerangQT
                     request.TriggerPrice = CalculateStopLossPrice();
                     CancelExistingOrder(currentPosition.StopLoss);
                     Log($"Placing Stop Loss at {request.TriggerPrice}", StrategyLoggingLevel.Trading);
+
+                    var result = Core.Instance.PlaceOrder(request);
+                    if (result.Status == TradingOperationResultStatus.Failure)
+                        Log($"Failed to place Stop Loss order: {result.Message}", StrategyLoggingLevel.Error);
+                    else
+                    {
+                        Log("Stop Loss order placed successfully.", StrategyLoggingLevel.Trading);
+                        takeProfitOrderId = result.OrderId;
+                    }
                 }
                 else
                 {
@@ -729,17 +762,60 @@ namespace BoomerangQT
                     request.Price = CalculateTakeProfitPrice();
                     CancelExistingOrder(currentPosition.TakeProfit);
                     Log($"Placing Take Profit at {request.Price}", StrategyLoggingLevel.Trading);
-                }
 
-                var result = Core.Instance.PlaceOrder(request);
-                if (result.Status == TradingOperationResultStatus.Failure)
-                    Log($"Failed to place {closeOrderType} order: {result.Message}", StrategyLoggingLevel.Error);
-                else
-                    Log($"{closeOrderType} order placed successfully.", StrategyLoggingLevel.Trading);
+                    var result = Core.Instance.PlaceOrder(request);
+                    if (result.Status == TradingOperationResultStatus.Failure)
+                        Log($"Failed to place Stop Loss order: {result.Message}", StrategyLoggingLevel.Error);
+                    else
+                    {
+                        Log("Stop Loss order placed successfully.", StrategyLoggingLevel.Trading);
+                        stopLossOrderId = result.OrderId;
+                    }
+                }     
             }
             catch (Exception ex)
             {
                 Log($"Exception in PlaceOrUpdateCloseOrder: {ex.Message}", StrategyLoggingLevel.Error);
+                Stop();
+            }
+        }
+
+        private void CancelExistingOrder(string orderId)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(orderId))
+                {
+                    // Retrieve the Order object using the orderId
+                    var existingOrder = Core.Instance.GetOrderById(orderId);
+
+                    if (existingOrder != null && existingOrder.Status == OrderStatus.Opened)
+                    {
+                        Log($"Cancelling existing order ID: {existingOrder.Id}", StrategyLoggingLevel.Trading);
+
+                        var cancelResult = Core.Instance.CancelOrder(existingOrder);
+                        if (cancelResult.Status == TradingOperationResultStatus.Failure)
+                            Log($"Failed to cancel existing order: {cancelResult.Message}", StrategyLoggingLevel.Error);
+                        else
+                        {
+                            Log("Existing order cancelled successfully.", StrategyLoggingLevel.Trading);
+
+                            // Reset the reference
+                            if (orderId == stopLossOrderId)
+                                stopLossOrderId = null;
+                            else if (orderId == takeProfitOrderId)
+                                takeProfitOrderId = null;
+                        }
+                    }
+                    else
+                    {
+                        Log($"Order with ID {orderId} not found or not active.", StrategyLoggingLevel.Trading);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"Exception in CancelExistingOrder: {ex.Message}", StrategyLoggingLevel.Error);
                 Stop();
             }
         }
@@ -875,6 +951,7 @@ namespace BoomerangQT
                 }
 
                 Core.PositionAdded -= OnPositionAdded;
+                Core.PositionRemoved -= OnPositionRemoved;
                 base.OnStop();
             }
             catch (Exception ex)
@@ -923,6 +1000,51 @@ namespace BoomerangQT
             public int Quantity { get; set; }
             public bool Executed { get; set; } = false;
         }
+
+        private void OnPositionRemoved(Position position)
+        {
+            try
+            {
+                if (position.Symbol != symbol || position.Account != account) return;
+                if (currentPosition == null) return;
+                if (currentPosition.Id != position.Id) return;
+
+                Log($"Position {position.Id} has been closed.", StrategyLoggingLevel.Trading);
+
+                // Cancel any remaining orders associated with the position
+                CancelAssociatedOrders();
+
+                currentPosition = null;
+
+                ResetStrategy();
+            }
+            catch (Exception ex)
+            {
+                Log($"Exception in OnPositionRemoved: {ex.Message}", StrategyLoggingLevel.Error);
+                Stop();
+            }
+        }
+
+        private void CancelAssociatedOrders()
+        {
+            try
+            {
+                // Cancel Stop Loss order
+                CancelExistingOrder(stopLossOrderId);
+
+                // Cancel Take Profit order
+                CancelExistingOrder(takeProfitOrderId);
+
+                // Reset the orderId references
+                stopLossOrderId = null;
+                takeProfitOrderId = null;
+            }
+            catch (Exception ex)
+            {
+                Log($"Exception in CancelAssociatedOrders: {ex.Message}", StrategyLoggingLevel.Error);
+            }
+        }
+
     }
 
     public static class Extensions
