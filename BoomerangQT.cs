@@ -675,9 +675,19 @@ namespace BoomerangQT
             {
                 Log($"We enter on the event OnPositionAdded");
 
-                if (position.Symbol != symbol || position.Account != account) return;
+                if (position.Symbol == null || symbol == null || !position.Symbol.Name.StartsWith(symbol.Name) || position.Account != account)
+                {
+                    Log($"Simbolo o cuenta no son correctos");
+                    return; 
+                }
 
-                if (currentPosition != null) return;
+                if (currentPosition != null)
+                {
+                    Log($"We already have a position!");
+                    return;
+                }
+
+                Log($"Hemos pasado!!");
 
                 currentPosition = position;
 
@@ -882,6 +892,8 @@ namespace BoomerangQT
                 }
                 else
                 {
+                    rangeHigh = currentPosition.OpenPrice + 10; // TODO: Borrar esto
+                    rangeLow = currentPosition.OpenPrice - 10;
                     takeProfitPrice = currentPosition.Side == Side.Buy ? (rangeHigh ?? currentPosition.OpenPrice) : (rangeLow ?? currentPosition.OpenPrice);
                     Log($"Set Take Profit to target price: {takeProfitPrice}", StrategyLoggingLevel.Trading);
                 }
@@ -1005,7 +1017,7 @@ namespace BoomerangQT
         {
             try
             {
-                if (position.Symbol != symbol || position.Account != account) return;
+                if (position.Symbol == null || symbol == null || !position.Symbol.Name.StartsWith(symbol.Name) || position.Account != account) return;
                 if (currentPosition == null) return;
                 if (currentPosition.Id != position.Id) return;
 
