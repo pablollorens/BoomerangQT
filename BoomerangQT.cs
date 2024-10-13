@@ -31,6 +31,9 @@ namespace BoomerangQT
         [InputParameter("Timeframe", 25, variants: new object[] { "1 Minute", "MIN1", "2 Minutes", "MIN2", "5 Minutes", "MIN5", "15 Minutes", "MIN15" })]
         public string timeframe = "MIN1";
 
+        [InputParameter("Multiple accounts on the same asset", 26)]
+        public bool multipleAccounts = false;
+
         [InputParameter("Time Zone", 5, variants: new object[] {
             "UTC−12:00", -12,
             "UTC−11:00", -11,
@@ -337,11 +340,11 @@ namespace BoomerangQT
                     return false;
                 }
 
-                if (symbol.ConnectionId != account.ConnectionId)
+                /*if (symbol.ConnectionId != account.ConnectionId)
                 {
                     Log("Symbol and Account have different connection IDs.", StrategyLoggingLevel.Error);
                     return false;
-                }
+                }*/
 
                 // Validate that DCA trigger percentages are less than stop loss percentage
                 foreach (var dcaLevel in new[]
@@ -661,6 +664,8 @@ namespace BoomerangQT
                     Log("Position closed successfully.", StrategyLoggingLevel.Trading);
 
                 currentPosition = null;
+
+                CancelAssociatedOrders();
             }
             catch (Exception ex)
             {
@@ -675,7 +680,7 @@ namespace BoomerangQT
             {
                 Log($"We enter on the event OnPositionAdded");
 
-                if (position.Symbol == null || symbol == null || !position.Symbol.Name.StartsWith(symbol.Name) || position.Account != account)
+                if (position.Symbol == null || symbol == null || !position.Symbol.Name.StartsWith(symbol.Name) || (multipleAccounts && position.Account != account))
                 {
                     Log($"Simbolo o cuenta no son correctos");
                     return; 
@@ -738,14 +743,7 @@ namespace BoomerangQT
 
                 if (closeOrderType == CloseOrderType.StopLoss)
                 {
-                    var orderType = symbol.GetOrderType(OrderTypeBehavior.Stop);
-                    if (orderType == null)
-                    {
-                        Log("Stop order type not found.", StrategyLoggingLevel.Error);
-                        return;
-                    }
-
-                    request.OrderTypeId = orderType.Id;
+                    request.OrderTypeId = "Stop";
                     request.TriggerPrice = CalculateStopLossPrice();
                     CancelExistingOrder(currentPosition.StopLoss);
                     Log($"Placing Stop Loss at {request.TriggerPrice}", StrategyLoggingLevel.Trading);
@@ -761,14 +759,7 @@ namespace BoomerangQT
                 }
                 else
                 {
-                    var orderType = symbol.GetOrderType(OrderTypeBehavior.Limit);
-                    if (orderType == null)
-                    {
-                        Log("Limit order type not found.", StrategyLoggingLevel.Error);
-                        return;
-                    }
-
-                    request.OrderTypeId = orderType.Id;
+                    request.OrderTypeId = "Limit";
                     request.Price = CalculateTakeProfitPrice();
                     CancelExistingOrder(currentPosition.TakeProfit);
                     Log($"Placing Take Profit at {request.Price}", StrategyLoggingLevel.Trading);
@@ -892,8 +883,8 @@ namespace BoomerangQT
                 }
                 else
                 {
-                    rangeHigh = currentPosition.OpenPrice + 10; // TODO: Borrar esto
-                    rangeLow = currentPosition.OpenPrice - 10;
+                    rangeHigh = currentPosition.OpenPrice + 3; // TODO: Borrar esto
+                    rangeLow = currentPosition.OpenPrice - 3;
                     takeProfitPrice = currentPosition.Side == Side.Buy ? (rangeHigh ?? currentPosition.OpenPrice) : (rangeLow ?? currentPosition.OpenPrice);
                     Log($"Set Take Profit to target price: {takeProfitPrice}", StrategyLoggingLevel.Trading);
                 }
@@ -1017,7 +1008,7 @@ namespace BoomerangQT
         {
             try
             {
-                if (position.Symbol == null || symbol == null || !position.Symbol.Name.StartsWith(symbol.Name) || position.Account != account) return;
+                if (position.Symbol == null || symbol == null || !position.Symbol.Name.StartsWith(symbol.Name) || (multipleAccounts && position.Account != account)) return;
                 if (currentPosition == null) return;
                 if (currentPosition.Id != position.Id) return;
 
@@ -1056,7 +1047,6 @@ namespace BoomerangQT
                 Log($"Exception in CancelAssociatedOrders: {ex.Message}", StrategyLoggingLevel.Error);
             }
         }
-
     }
 
     public static class Extensions
@@ -1064,12 +1054,6 @@ namespace BoomerangQT
         public static Side Invert(this Side side)
         {
             return side == Side.Buy ? Side.Sell : Side.Buy;
-        }
-
-        public static OrderType GetOrderType(this Symbol symbol, OrderTypeBehavior behavior)
-        {
-            return symbol.GetAlowedOrderTypes(OrderTypeUsage.CloseOrder)
-                .FirstOrDefault(ot => ot.Behavior == behavior);
         }
     }
 }
