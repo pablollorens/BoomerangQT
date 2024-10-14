@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Linq;
@@ -140,6 +141,7 @@ namespace BoomerangQT
         private Status strategyStatus = Status.WaitingForRange;
         private string stopLossOrderId;
         private string takeProfitOrderId;
+        List<IOrder> orders;
 
         // DCA levels list
         private List<DcaLevel> dcaLevels = new List<DcaLevel>();
@@ -559,32 +561,78 @@ namespace BoomerangQT
                     return;
                 }
 
-                return;
-
                 double currentPrice = currentPosition.CurrentPrice;
+
+                double totalContractsUsed = currentPosition.Quantity;
 
                 foreach (var dcaLevel in dcaLevels)
                 {
                     if (dcaLevel.Executed) continue;
 
-                    double triggerPrice = currentPosition.Side == Side.Buy
-                        ? currentPosition.OpenPrice * (1 - dcaLevel.TriggerPercentage)
-                        : currentPosition.OpenPrice * (1 + dcaLevel.TriggerPercentage);
+                    double triggerPrice = calculateDCAPrice(dcaLevel.TriggerPercentage);
 
-                    if ((currentPosition.Side == Side.Buy && currentPrice <= triggerPrice)
-                        || (currentPosition.Side == Side.Sell && currentPrice >= triggerPrice))
+                    if ((currentPosition.Side == Side.Buy && currentPrice >= triggerPrice)
+                        || (currentPosition.Side == Side.Sell && currentPrice <= triggerPrice))
                     {
                         dcaLevel.Executed = true;
-                        numberDCA++;
-                        Log($"DCA Level {dcaLevel.LevelNumber} triggered at price {currentPrice}.", StrategyLoggingLevel.Trading);
-                        PlaceDCAOrder(dcaLevel.Quantity);
+                        Log($"Placing DCA Level {dcaLevel.LevelNumber} at price {triggerPrice} with quantity {dcaLevel.Quantity}", StrategyLoggingLevel.Trading);
+
+                        try
+                        {
+                            var result = Core.Instance.PlaceOrder(new PlaceOrderRequestParameters
+                            {
+                                Symbol = symbol,
+                                Account = account,
+                                Side = currentPosition.Side,
+                                OrderTypeId = "Limit",
+                                Quantity = (double) dcaLevel.Quantity,
+                                Price = triggerPrice,
+                            });
+
+                            if (result.Status == TradingOperationResultStatus.Failure)
+                                Log($"Failed to place DCA order: {result.Message}", StrategyLoggingLevel.Error);
+                            else
+                            {
+                                Log($"DCA order placed successfully.", StrategyLoggingLevel.Trading);
+                                totalContractsUsed = totalContractsUsed + dcaLevel.Quantity;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"Exception in PlaceDCAOrder: {ex.Message}", StrategyLoggingLevel.Error);
+                            Stop();
+                        }
                     }
                 }
+                PlaceOrUpdateCloseOrder(CloseOrderType.StopLoss, totalContractsUsed);
             }
             catch (Exception ex)
             {
                 Log($"Exception in MonitorTrade: {ex.Message}", StrategyLoggingLevel.Error);
                 Stop();
+            }
+        }
+
+        private double calculateDCAPrice(double percentage)
+        {
+            try
+            {
+                Log($"CurrentPrice: {currentPosition.CurrentPrice}");
+                Log($"Side: {currentPosition.Side}");
+                Log($"DCA Percentage: {percentage}");
+
+                double dcaPrice = currentPosition.Side == Side.Buy
+                    ? currentPosition.OpenPrice - currentPosition.OpenPrice * (percentage / 100)
+                    : currentPosition.OpenPrice + currentPosition.OpenPrice * (stopLossPercentage / 100);
+
+                Log($"Calculated Stop Loss Price: {dcaPrice}", StrategyLoggingLevel.Trading);
+
+                return dcaPrice;
+            }
+            catch (Exception ex)
+            {
+                Log($"Exception in calculateDCAPrice: {ex.Message}", StrategyLoggingLevel.Error);
+                throw;
             }
         }
 
@@ -614,36 +662,6 @@ namespace BoomerangQT
             catch (Exception ex)
             {
                 Log($"Exception in PlaceTrade: {ex.Message}", StrategyLoggingLevel.Error);
-                Stop();
-            }
-        }
-
-        private void PlaceDCAOrder(int quantity)
-        {
-            try
-            {
-                Log($"Placing DCA order with quantity {quantity}.", StrategyLoggingLevel.Trading);
-
-                var result = Core.Instance.PlaceOrder(new PlaceOrderRequestParameters
-                {
-                    Symbol = symbol,
-                    Account = account,
-                    Side = currentPosition.Side,
-                    OrderTypeId = OrderType.Market,
-                    Quantity = (double) quantity,
-                });
-
-                if (result.Status == TradingOperationResultStatus.Failure)
-                    Log($"Failed to place DCA order: {result.Message}", StrategyLoggingLevel.Error);
-                else
-                {
-                    Log($"DCA order of {quantity} placed successfully.", StrategyLoggingLevel.Trading);
-                    UpdateCloseOrders();
-                }
-            }
-            catch (Exception ex)
-            {
-                Log($"Exception in PlaceDCAOrder: {ex.Message}", StrategyLoggingLevel.Error);
                 Stop();
             }
         }
@@ -722,7 +740,7 @@ namespace BoomerangQT
             }
         }
 
-        private void PlaceOrUpdateCloseOrder(CloseOrderType closeOrderType)
+        private void PlaceOrUpdateCloseOrder(CloseOrderType closeOrderType, double contracts = -1)
         {
             try
             {
@@ -733,7 +751,7 @@ namespace BoomerangQT
                     Symbol = symbol,
                     Account = account,
                     Side = currentPosition.Side.Invert(),
-                    Quantity = currentPosition.Quantity,
+                    Quantity = contracts == -1 ? currentPosition.Quantity : contracts,
                     PositionId = currentPosition.Id,
                     AdditionalParameters = new List<SettingItem>
                     {
