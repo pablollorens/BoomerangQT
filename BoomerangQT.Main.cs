@@ -1,5 +1,6 @@
 // BoomerangQT.Main.cs
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TradingPlatform.BusinessLayer;
@@ -12,7 +13,7 @@ namespace BoomerangQT
         private Symbol symbol;
         public Account account;
         public string timeframe = "MIN1";
-        public int timeZoneOffset = 0; // Default to UTC±00:00
+        public int timeZoneOffset = -4; // Default to UTC±00:00
 
         public DateTime startTime = DateTime.Today.AddHours(6).AddMinutes(25);
         public DateTime endTime = DateTime.Today.AddHours(6).AddMinutes(30);
@@ -67,6 +68,7 @@ namespace BoomerangQT
         private Status strategyStatus = Status.WaitingForRange;
         private string stopLossOrderId;
         private string takeProfitOrderId;
+        private Period selectedPeriod;
 
         private List<IOrder> dcaOrders = new List<IOrder>();
 
@@ -113,7 +115,7 @@ namespace BoomerangQT
                 Log($"Symbol initialized: {symbol.Name}", StrategyLoggingLevel.Trading);
 
                 // Map the timeframe string to the Period enum
-                Period selectedPeriod = timeframe.ToUpper() switch
+                selectedPeriod = timeframe.ToUpper() switch
                 {
                     "MIN1" or "1 MINUTE" => Period.MIN1,
                     "MIN2" or "2 MINUTES" => Period.MIN2,
@@ -136,7 +138,7 @@ namespace BoomerangQT
                 InitializeDcaLevels();
 
                 historicalData.HistoryItemUpdated += OnHistoryItemUpdated;
-                symbol.NewQuote += OnNewQuote;
+                //this.symbol.NewQuote += OnNewQuote; // TODO: I guess we are just working with the history item updated
                 Core.PositionAdded += OnPositionAdded;
                 Core.PositionRemoved += OnPositionRemoved;
                 Core.Instance.LocalOrders.Updated += OnOrderUpdated;
@@ -148,31 +150,58 @@ namespace BoomerangQT
             }
         }
 
-        private void OnNewQuote(Symbol symbol, Quote quote)
+        private void OnHistoryItemUpdated(object sender, HistoryEventArgs e)
         {
+            Log($"item updated");
+
             try
             {
+                if (!(e.HistoryItem is HistoryItemBar currentBar)) return;
+                if (historicalData.Count <= 1) return;
+
+                HistoryItemBar previousBar = historicalData[1] as HistoryItemBar;
+
+                Boolean closedBar = false;
+
+                // Check if both bars' hours and minutes are the same
+                if (previousBar != null && currentBar.TimeLeft.Hour == previousBar.TimeLeft.Hour &&
+                    currentBar.TimeLeft.Minute == previousBar.TimeLeft.Minute)
+                {
+                    Log("The current and previous bar have the same hour and minute.", StrategyLoggingLevel.Trading);
+                }
+                else
+                {
+                    Log($"The current and previous bar have different hour and/or minute, which means previousBar is closed at {previousBar:HH:mm}", StrategyLoggingLevel.Trading);
+                    closedBar = true;
+                }
+
+                DateTime currentTime = currentBar.TimeLeft.AddHours(timeZoneOffset);
+
+                UpdateRangeTimes(currentTime); // Updates range to the current day
+
                 if (strategyStatus == Status.WaitingForRange)
                 {
                     // Update range on every tick
-                    UpdateRange(symbol, quote);
+                    UpdateRange(currentBar);
 
                     // If entering regardless of range breakout, enter immediately after range is formed
-                    if (enterRegardlessOfRangeBreakout && rangeHigh.HasValue && rangeLow.HasValue)
-                    {
-                        PlaceSelectedEntry();
-                        strategyStatus = Status.ManagingTrade;
-                    }
+                    //if (enterRegardlessOfRangeBreakout && rangeHigh.HasValue && rangeLow.HasValue)
+                    //{
+                    //    PlaceSelectedEntry();
+                    //    strategyStatus = Status.ManagingTrade;
+                    //}
                 }
                 else if (strategyStatus == Status.BreakoutDetection)
                 {
-                    // Detect breakout on every tick
-                    DetectBreakout(symbol, quote);
+                    // Detect breakout only on closed bars
+                    if (closedBar == true) {
+                        DetectBreakout(previousBar);
+                    }
                 }
                 else if (strategyStatus == Status.ManagingTrade)
                 {
                     // Monitor trade on every tick
-                    MonitorTrade(symbol, quote);
+                    MonitorTrade(currentBar);
                 }
             }
             catch (Exception ex)
@@ -182,23 +211,39 @@ namespace BoomerangQT
             }
         }
 
-        private void OnHistoryItemUpdated(object sender, HistoryEventArgs e)
-        {
-            // This method is no longer used for breakout detection but can be used for other purposes if needed
-        }
-
         private void UpdateRangeTimes(DateTime date)
         {
             try
             {
-                // Combine the date with the input times
+                TimeSpan selectedUtcOffset = TimeSpan.FromHours(timeZoneOffset);
+                //Log($"Selected UTC Offset: {selectedUtcOffset.TotalHours} hours");
+
+                rangeEnd = rangeEnd.AddMinutes(selectedPeriod.Duration.Minutes).AddSeconds(-1);
+
+                // Combine the date with the input times, treating input times as local times without time zone conversions
                 rangeStart = new DateTimeOffset(date.Year, date.Month, date.Day, startTime.Hour, startTime.Minute, 0, selectedUtcOffset);
-                rangeEnd = new DateTimeOffset(date.Year, date.Month, date.Day, endTime.Hour, endTime.Minute, 0, selectedUtcOffset);
+                rangeEnd = new DateTimeOffset(date.Year, date.Month, date.Day, endTime.Hour, endTime.Minute, endTime.Second, selectedUtcOffset);
                 detectionStart = new DateTimeOffset(date.Year, date.Month, date.Day, detectionStartTime.Hour, detectionStartTime.Minute, 0, selectedUtcOffset);
                 detectionEnd = new DateTimeOffset(date.Year, date.Month, date.Day, detectionEndTime.Hour, detectionEndTime.Minute, 0, selectedUtcOffset);
                 closePositionsAt = new DateTimeOffset(date.Year, date.Month, date.Day, closePositionsAtTime.Hour, closePositionsAtTime.Minute, 0, selectedUtcOffset);
 
-                Log($"Range times updated. Range Start: {rangeStart:yyyy-MM-dd HH:mm}, Range End: {rangeEnd:yyyy-MM-dd HH:mm}", StrategyLoggingLevel.Trading);
+                Log($"Timeoffset: {timeZoneOffset}");
+                Log($"StartTime: {rangeStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"endTime: {rangeEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"detectionStartTime: {detectionStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"detectionEndTime: {detectionEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                Log($"ClosePositionsAt: {closePositionsAt:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+
+                if (detectionStart < rangeEnd)
+                    detectionStart = rangeEnd;
+
+                if (rangeEnd < rangeStart)
+                    rangeEnd = rangeEnd.AddDays(1);
+
+                if (closePositionsAt <= detectionEnd)
+                    closePositionsAt = closePositionsAt.AddDays(1);
+
+                Log($"Range times updated. Range Start: {rangeStart:yyyy-MM-dd HH:mm}, Range End: {rangeEnd:yyyy-MM-dd HH:mm}, Detection Start: {detectionStart:yyyy-MM-dd HH:mm}, Detection End: {detectionEnd:yyyy-MM-dd HH:mm}, Close Positions At: {closePositionsAt:yyyy-MM-dd HH:mm}", StrategyLoggingLevel.Trading);
             }
             catch (Exception ex)
             {
@@ -207,16 +252,16 @@ namespace BoomerangQT
             }
         }
 
-        private void UpdateRange(Symbol symbol, Quote quote)
+        private void UpdateRange(HistoryItemBar bar)
         {
             try
             {
-                DateTimeOffset currentTime = quote.Time;
+                DateTime currentTime = bar.TimeLeft.AddHours(timeZoneOffset);
 
-                if (currentTime >= rangeStart && currentTime <= rangeEnd)
+                if (currentTime >= rangeStart && currentTime < rangeEnd.AddMinutes(1))
                 {
-                    rangeHigh = rangeHigh.HasValue ? Math.Max(rangeHigh.Value, quote.Ask) : quote.Ask;
-                    rangeLow = rangeLow.HasValue ? Math.Min(rangeLow.Value, quote.Bid) : quote.Bid;
+                    rangeHigh = rangeHigh.HasValue ? Math.Max(rangeHigh.Value, bar.High) : bar.High;
+                    rangeLow = rangeLow.HasValue ? Math.Min(rangeLow.Value, bar.Low) : bar.Low;
 
                     Log($"Range updated. High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
 
@@ -228,16 +273,7 @@ namespace BoomerangQT
                     {
                         Log($"Range detection ended. Final Range - High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
 
-                        if (!enterRegardlessOfRangeBreakout)
-                        {
-                            strategyStatus = Status.BreakoutDetection;
-                        }
-                        else
-                        {
-                            // Enter immediately if configured to do so
-                            PlaceSelectedEntry();
-                            strategyStatus = Status.ManagingTrade;
-                        }
+                        strategyStatus = Status.BreakoutDetection;
                     }
                     else
                     {
@@ -254,23 +290,23 @@ namespace BoomerangQT
             }
         }
 
-        private void DetectBreakout(Symbol symbol, Quote quote)
+        private void DetectBreakout(HistoryItemBar bar)
         {
             try
             {
-                DateTimeOffset currentTime = quote.Time;
+                DateTime currentTime = bar.TimeLeft.AddHours(timeZoneOffset);
 
                 if (currentTime >= detectionStart && currentTime <= detectionEnd)
                 {
-                    if (rangeHigh.HasValue && quote.Ask > rangeHigh.Value)
+                    if (rangeHigh.HasValue && bar.Close > rangeHigh.Value)
                     {
-                        Log($"Breakout above range high detected at {quote.Ask}.", StrategyLoggingLevel.Trading);
+                        Log($"Breakout above range high detected at {bar.Close}.", StrategyLoggingLevel.Trading);
                         PlaceSelectedEntry(Side.Sell);
                         strategyStatus = Status.ManagingTrade;
                     }
-                    else if (rangeLow.HasValue && quote.Bid < rangeLow.Value)
+                    else if (rangeLow.HasValue && bar.Close < rangeLow.Value)
                     {
-                        Log($"Breakout below range low detected at {quote.Bid}.", StrategyLoggingLevel.Trading);
+                        Log($"Breakout below range low detected at {bar.Close}.", StrategyLoggingLevel.Trading);
                         PlaceSelectedEntry(Side.Buy);
                         strategyStatus = Status.ManagingTrade;
                     }
@@ -288,7 +324,7 @@ namespace BoomerangQT
             }
         }
 
-        private void MonitorTrade(Symbol symbol, Quote quote)
+        private void MonitorTrade(HistoryItemBar bar)
         {
             try
             {
@@ -353,9 +389,41 @@ namespace BoomerangQT
 
         private bool ValidateInputs()
         {
-            try
-            {
-                // Add any input validation logic here if necessary
+            try { 
+                if (symbol == null)
+                {
+                    Log("Symbol is not specified.", StrategyLoggingLevel.Error);
+                    return false;
+                }
+
+                if (account == null)
+                {
+                    Log("Account is not specified.", StrategyLoggingLevel.Error);
+                    return false;
+                }
+
+                if (symbol.ConnectionId != account.ConnectionId)
+                {
+                    Log("Symbol and Account have different connection IDs.", StrategyLoggingLevel.Error);
+                    return false;
+                }
+
+                // Validate that DCA trigger percentages are less than stop loss percentage
+                foreach (var dcaLevel in new[]
+                {
+                        new { Enabled = enableDcaLevel1, Percentage = dcaPercentage1, Level = 1 },
+                        new { Enabled = enableDcaLevel2, Percentage = dcaPercentage2, Level = 2 },
+                        new { Enabled = enableDcaLevel3, Percentage = dcaPercentage3, Level = 3 }
+                    })
+                {
+                    if (dcaLevel.Enabled && dcaLevel.Percentage >= stopLossPercentage)
+                    {
+                        Log($"DCA Level {dcaLevel.Level} trigger percentage ({dcaLevel.Percentage * 100}%) must be less than Stop Loss percentage ({stopLossPercentage * 100}%).", StrategyLoggingLevel.Error);
+                        return false;
+                    }
+                }
+
+                Log("Input parameters validated.", StrategyLoggingLevel.Trading);
                 return true;
             }
             catch (Exception ex)
@@ -378,7 +446,7 @@ namespace BoomerangQT
                     historicalData = null;
                 }
 
-                symbol.NewQuote -= OnNewQuote;
+                historicalData.HistoryItemUpdated -= OnHistoryItemUpdated;
                 Core.PositionAdded -= OnPositionAdded;
                 Core.PositionRemoved -= OnPositionRemoved;
                 Core.Instance.LocalOrders.Updated -= OnOrderUpdated;
