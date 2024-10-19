@@ -14,10 +14,10 @@ namespace BoomerangQT
 
     public enum FirstEntryOption
     {
-        MainEntry = 1,
-        DcaLevel1 = 2,
-        DcaLevel2 = 3,
-        DcaLevel3 = 4
+        MainEntry = 0,
+        DcaLevel1 = 1,
+        DcaLevel2 = 2,
+        DcaLevel3 = 3
     }
 
     public enum TPType
@@ -106,17 +106,10 @@ namespace BoomerangQT
                     SortIndex = 70
                 });
 
-                // Enter Regardless of Range Breakout
-                settings.Add(new SettingItemBoolean("enterRegardlessOfRangeBreakout", enterRegardlessOfRangeBreakout)
+                // Enable Manual Mode
+                settings.Add(new SettingItemBoolean("enableManualMode", enableManualMode)
                 {
-                    Text = "Enter Regardless of Range Breakout",
-                    SortIndex = 71
-                });
-
-                // Enable Market Replay Mode
-                settings.Add(new SettingItemBoolean("enableMarketReplayMode", enableMarketReplayMode)
-                {
-                    Text = "Enable Market Replay Mode",
+                    Text = "Enable manual mode",
                     SortIndex = 72
                 });
 
@@ -146,7 +139,11 @@ namespace BoomerangQT
                 settings.Add(new SettingItemDouble("stopLossPercentage", stopLossPercentage)
                 {
                     Text = "Stop Loss Percentage",
-                    SortIndex = 85
+                    SortIndex = 85,
+                    Minimum = 0.01,
+                    Maximum = 5,
+                    Increment = 0.01,
+                    DecimalPlaces = 2
                 });
 
                 // Take Profit Type
@@ -167,6 +164,10 @@ namespace BoomerangQT
                 {
                     Text = "Take Profit Percentage",
                     SortIndex = 91,
+                    Minimum = 0.01,
+                    Maximum = 5,
+                    Increment = 0.01,
+                    DecimalPlaces = 2,
                     Relation = new SettingItemRelationVisibility("takeProfitType", TPType.FixedPercentage)
                 });
 
@@ -257,9 +258,6 @@ namespace BoomerangQT
                 if (value.TryGetValue("firstEntryOption", out FirstEntryOption firstEntryOptionValue))
                     firstEntryOption = firstEntryOptionValue;
 
-                if (value.TryGetValue("enterRegardlessOfRangeBreakout", out bool enterRegardlessValue))
-                    enterRegardlessOfRangeBreakout = enterRegardlessValue;
-
                 if (value.TryGetValue("takeProfitType", out TPType takeProfitTypeValue))
                     takeProfitType = takeProfitTypeValue;
 
@@ -284,8 +282,8 @@ namespace BoomerangQT
                 if (value.TryGetValue("breakevenPlusPoints", out double breakevenPlusPointsValue))
                     breakevenPlusPoints = breakevenPlusPointsValue;
 
-                if (value.TryGetValue("enableMarketReplayMode", out bool enableMarketReplayModeValue))
-                    enableMarketReplayMode = enableMarketReplayModeValue;
+                if (value.TryGetValue("enableManualMode", out bool enableManualModeValue))
+                    enableManualMode = enableManualModeValue;
 
                 // DCA Levels
                 SetDcaSettings(value);
@@ -307,6 +305,10 @@ namespace BoomerangQT
             {
                 Text = "DCA Level 1 Trigger Percentage",
                 SortIndex = 101,
+                Minimum = 0.01,
+                Maximum = 5,
+                Increment = 0.01,
+                DecimalPlaces = 2,
                 Relation = new SettingItemRelationEnability("enableDcaLevel1", true)
             });
 
@@ -328,6 +330,10 @@ namespace BoomerangQT
             {
                 Text = "DCA Level 2 Trigger Percentage",
                 SortIndex = 111,
+                Minimum = 0.01,
+                Maximum = 5,
+                Increment = 0.01,
+                DecimalPlaces = 2,
                 Relation = new SettingItemRelationEnability("enableDcaLevel2", true)
             });
 
@@ -349,6 +355,10 @@ namespace BoomerangQT
             {
                 Text = "DCA Level 3 Trigger Percentage",
                 SortIndex = 131,
+                Minimum = 0.01,
+                Maximum = 5,
+                Increment = 0.01,
+                DecimalPlaces = 2,
                 Relation = new SettingItemRelationEnability("enableDcaLevel3", true)
             });
 

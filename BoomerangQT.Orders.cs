@@ -15,22 +15,23 @@ namespace BoomerangQT
                 // Determine side if not provided (based on breakout direction or default)
                 if (!side.HasValue)
                 {
-                    side = default(Side); // Set a default value if necessary
+                    Log($"Side not set", StrategyLoggingLevel.Error);
+                    Stop();
                 }
 
                 switch (firstEntryOption)
                 {
                     case FirstEntryOption.MainEntry:
-                        PlaceTrade(side.Value);
+                        PlaceTrade(side.Value); // This will be protected
                         break;
                     case FirstEntryOption.DcaLevel1:
-                        PlaceFirstDcaEntry(1, side.Value);
+                        PlaceDCALimitOrder(1, side.Value); // This will be a simple limit order, later will be protected by the event
                         break;
                     case FirstEntryOption.DcaLevel2:
-                        PlaceFirstDcaEntry(2, side.Value);
+                        PlaceDCALimitOrder(2, side.Value); // This will be a simple limit order, later will be protected by the event
                         break;
                     case FirstEntryOption.DcaLevel3:
-                        PlaceFirstDcaEntry(3, side.Value);
+                        PlaceDCALimitOrder(3, side.Value); // This will be a simple limit order, later will be protected by the event
                         break;
                 }
             }
@@ -71,11 +72,12 @@ namespace BoomerangQT
             }
         }
 
-        private void PlaceFirstDcaEntry(int levelNumber, Side side)
+        private void PlaceDCALimitOrder(int levelNumber, Side side)
         {
             try
             {
                 var dcaLevel = dcaLevels.FirstOrDefault(d => d.LevelNumber == levelNumber);
+
                 if (dcaLevel == null)
                 {
                     Log($"DCA Level {levelNumber} is not enabled.", StrategyLoggingLevel.Error);
@@ -91,7 +93,8 @@ namespace BoomerangQT
                     Symbol = symbol,
                     Account = account,
                     Side = side,
-                    OrderTypeId = OrderType.Market,
+                    OrderTypeId = OrderType.Limit,
+                    Price = CalculateDcaPrice(dcaLevel.TriggerPercentage),
                     Quantity = dcaLevel.Quantity,
                 });
 
@@ -111,6 +114,10 @@ namespace BoomerangQT
         {
             try
             {
+                // if a position is being opened: by range breakout when main entry is active, manually (if enabled) or by an execution of a DCA order
+                // This will only happen once per range
+                if (currentPosition != null) return;
+
                 if (position.Symbol == null || symbol == null || !position.Symbol.Name.StartsWith(symbol.Name) || position.Account != account)
                     return;
 
@@ -118,9 +125,11 @@ namespace BoomerangQT
 
                 Log($"New position added. Side: {position.Side}, Quantity: {position.Quantity}, Open Price: {position.OpenPrice}", StrategyLoggingLevel.Trading);
 
-                if (strategyStatus == Status.ManagingTrade || enableMarketReplayMode)
+                if (strategyStatus == Status.ManagingTrade || enableManualMode)
                 {
-                    ProtectPosition();
+                    strategyStatus = Status.ManagingTrade;
+
+                    ProtectPosition(); // This needs to happen only the first time the position is opened
                 }
             }
             catch (Exception ex)
@@ -143,7 +152,7 @@ namespace BoomerangQT
                 PlaceOrUpdateTakeProfit();
 
                 // Place DCA orders
-                PlaceDcaOrders();
+                PlaceDcaOrders(); // The ones not placed yet
             }
             catch (Exception ex)
             {
@@ -278,8 +287,8 @@ namespace BoomerangQT
                     case TPType.FixedPercentage:
                         double tpPercentage = takeProfitPercentage / 100;
                         takeProfitPrice = currentPosition.Side == Side.Buy
-                            ? currentPosition.OpenPrice + currentPosition.OpenPrice * tpPercentage
-                            : currentPosition.OpenPrice - currentPosition.OpenPrice * tpPercentage;
+                            ? currentPosition.OpenPrice + (currentPosition.OpenPrice * tpPercentage)
+                            : currentPosition.OpenPrice - (currentPosition.OpenPrice * tpPercentage);
                         Log($"Take Profit set using fixed percentage: {takeProfitPrice}", StrategyLoggingLevel.Trading);
                         break;
 
@@ -317,7 +326,7 @@ namespace BoomerangQT
                     // Retrieve the Order object using the orderId
                     var existingOrder = Core.Instance.GetOrderById(orderId);
 
-                    if (existingOrder != null && existingOrder.Status == OrderStatus.Filled)
+                    if (existingOrder != null)
                     {
                         Log($"Cancelling existing order ID: {existingOrder.Id}", StrategyLoggingLevel.Trading);
 
@@ -440,16 +449,21 @@ namespace BoomerangQT
 
         private double GetTotalPotentialPositionSize()
         {
-            int totalQuantity = initialQuantity + dcaLevels.Sum(d => d.IsFirstEntry ? 0 : d.Quantity);
+            int totalQuantity = 0;
 
             // Add the quantity of the first entry level if it's a DCA level
             if (firstEntryOption != FirstEntryOption.MainEntry)
             {
-                var firstDcaLevel = dcaLevels.FirstOrDefault(d => d.LevelNumber == (int)firstEntryOption);
-                if (firstDcaLevel != null)
+                foreach(DcaLevel dcaLevel in dcaLevels)
                 {
-                    totalQuantity += firstDcaLevel.Quantity;
+                    if (dcaLevel.LevelNumber >= (int) firstEntryOption)
+                    {
+                        totalQuantity = totalQuantity + dcaLevel.Quantity;
+                    }
                 }
+            } else
+            {
+                totalQuantity = totalQuantity + initialQuantity;
             }
 
             return totalQuantity;
