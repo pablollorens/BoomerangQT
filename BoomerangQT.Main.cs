@@ -70,7 +70,7 @@ namespace BoomerangQT
         private Period selectedPeriod;
         private HistoryItemBar previousBar = null;
 
-        private List<IOrder> dcaOrders = new List<IOrder>();
+        private List<string> dcaOrders = new List<string>();
 
         // DCA Level Parameters
         private List<DcaLevel> dcaLevels = new List<DcaLevel>();
@@ -89,11 +89,11 @@ namespace BoomerangQT
             detectionEndTime = detectionEndTime.ToLocalTime();
             closePositionsAtTime = closePositionsAtTime.ToLocalTime();
 
-            Log($"StartTime: {startTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
-            Log($"endTime: {endTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
-            Log($"detectionStartTime: {detectionStartTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
-            Log($"detectionEndTime: {detectionEndTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
-            Log($"ClosePositionsAt: {closePositionsAtTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
+            //Log($"StartTime: {startTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
+            //Log($"endTime: {endTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
+            //Log($"detectionStartTime: {detectionStartTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
+            //Log($"detectionEndTime: {detectionEndTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
+            //Log($"ClosePositionsAt: {closePositionsAtTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
 
             //Log($"BREAK");
 
@@ -113,12 +113,12 @@ namespace BoomerangQT
             detectionEnd = new DateTimeOffset(detectionEndTime.Year, detectionEndTime.Month, detectionEndTime.Day, detectionEndTime.Hour, detectionEndTime.Minute, 0, selectedUtcOffset);
             closePositionsAt = new DateTimeOffset(closePositionsAtTime.Year, closePositionsAtTime.Month, closePositionsAtTime.Day, closePositionsAtTime.Hour, closePositionsAtTime.Minute, 0, selectedUtcOffset);
 
-            Log($"Timeoffset: {timeZoneOffset}");
-            Log($"StartTime: {rangeStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            Log($"endTime: {rangeEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            Log($"detectionStartTime: {detectionStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            Log($"detectionEndTime: {detectionEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            Log($"ClosePositionsAt: {closePositionsAt:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            //Log($"Timeoffset: {timeZoneOffset}");
+            //Log($"StartTime: {rangeStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            //Log($"endTime: {rangeEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            //Log($"detectionStartTime: {detectionStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            //Log($"detectionEndTime: {detectionEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            //Log($"ClosePositionsAt: {closePositionsAt:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
 
             try
             {
@@ -183,29 +183,27 @@ namespace BoomerangQT
                 if (!(e.HistoryItem is HistoryItemBar currentBar)) return;
                 //if (historicalData.Count <= 1) return;
 
-                if (this.previousBar == null) this.previousBar = currentBar;
+                if (previousBar == null) previousBar = currentBar;
 
-                DateTime previousBarTime = this.previousBar.TimeLeft.AddHours(timeZoneOffset);
+                DateTime previousBarTime = previousBar.TimeLeft.AddHours(timeZoneOffset);
                 DateTime currentBarTime = currentBar.TimeLeft.AddHours(timeZoneOffset);
 
                 Boolean closedBar = false;
 
-                Log($"currentBar: {currentBar}", StrategyLoggingLevel.Trading);
-                Log($"previousBar: {previousBar}", StrategyLoggingLevel.Trading);
+                //Log($"currentBar: {currentBar}", StrategyLoggingLevel.Trading);
+                //Log($"previousBar: {previousBar}", StrategyLoggingLevel.Trading);
 
                 // Check if both bars' hours and minutes are the same
                 if (currentBar.TimeLeft.Hour == previousBar.TimeLeft.Hour && currentBar.TimeLeft.Minute == previousBar.TimeLeft.Minute)
                 {
-                    Log("The current and previous bar have the same hour and minute.", StrategyLoggingLevel.Trading);
+                    //Log("The current and previous bar have the same hour and minute.", StrategyLoggingLevel.Trading);
                     // We can allow MonitorTrade and Range formation with this bars but not BreakoutDetection
                 }
                 else
                 {
-                    Log($"The current and previous bar have different hour and/or minute, which means previousBar is closed at {previousBar:HH:mm}", StrategyLoggingLevel.Trading);
+                    //Log($"The current and previous bar have different hour and/or minute, which means previousBar is closed at {previousBar:HH:mm}", StrategyLoggingLevel.Trading);
                     closedBar = true;
                 }
-
-                this.previousBar = currentBar;
 
                 UpdateRangeTimes(currentBarTime.Date); // Updates range to the current day
                 
@@ -221,14 +219,14 @@ namespace BoomerangQT
                     if (closedBar == true) {
                         DetectBreakout(previousBar);
                     }
-                }
-                
-                if (strategyStatus == Status.ManagingTrade)
+                } else if (strategyStatus == Status.ManagingTrade)
                 {
                     // Monitor trade on every tick
-                    // If manual mode is enabled and we enter a trade the status will become ManagingTrade
+                    // If manual mode is enabled and we enter a trade the status will become ManagingTrade, so basically we're always checking until a trade is in play
                     MonitorTrade(currentBar);
                 }
+
+                previousBar = currentBar;
             }
             catch (Exception ex)
             {
@@ -242,7 +240,7 @@ namespace BoomerangQT
             try
             {
                 TimeSpan selectedUtcOffset = TimeSpan.FromHours(timeZoneOffset);
-                Log($"Selected UTC Offset: {selectedUtcOffset.TotalHours} hours");
+                //Log($"Selected UTC Offset: {selectedUtcOffset.TotalHours} hours");
 
                 // Combine the date with the input times, treating input times as local times without time zone conversions
                 rangeStart = new DateTimeOffset(date.Year, date.Month, date.Day, startTime.Hour, startTime.Minute, 0, selectedUtcOffset);
@@ -251,12 +249,12 @@ namespace BoomerangQT
                 detectionEnd = new DateTimeOffset(date.Year, date.Month, date.Day, detectionEndTime.Hour, detectionEndTime.Minute, 0, selectedUtcOffset);
                 closePositionsAt = new DateTimeOffset(date.Year, date.Month, date.Day, closePositionsAtTime.Hour, closePositionsAtTime.Minute, 0, selectedUtcOffset);
 
-                Log($"Timeoffset: {timeZoneOffset}");
-                Log($"StartTime: {rangeStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-                Log($"endTime: {rangeEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-                Log($"detectionStartTime: {detectionStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-                Log($"detectionEndTime: {detectionEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-                Log($"ClosePositionsAt: {closePositionsAt:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                //Log($"Timeoffset: {timeZoneOffset}");
+                //Log($"StartTime: {rangeStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                //Log($"endTime: {rangeEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                //Log($"detectionStartTime: {detectionStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                //Log($"detectionEndTime: {detectionEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                //Log($"ClosePositionsAt: {closePositionsAt:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
 
                 if (detectionStart < rangeEnd)
                     detectionStart = rangeEnd;
@@ -267,8 +265,8 @@ namespace BoomerangQT
                 if (closePositionsAt <= detectionEnd)
                     closePositionsAt = closePositionsAt.AddDays(1);
 
-                Log($"Range times updated. Range Start: {rangeStart:yyyy-MM-dd HH:mm}, Range End: {rangeEnd:yyyy-MM-dd HH:mm}");
-                Log($"Detection Start: {detectionStart:yyyy-MM-dd HH:mm}, Detection End: {detectionEnd:yyyy-MM-dd HH:mm}, Close Positions At: {closePositionsAt:yyyy-MM-dd HH:mm}", StrategyLoggingLevel.Trading);
+                //Log($"Range times updated. Range Start: {rangeStart:yyyy-MM-dd HH:mm}, Range End: {rangeEnd:yyyy-MM-dd HH:mm}");
+                //Log($"Detection Start: {detectionStart:yyyy-MM-dd HH:mm}, Detection End: {detectionEnd:yyyy-MM-dd HH:mm}, Close Positions At: {closePositionsAt:yyyy-MM-dd HH:mm}", StrategyLoggingLevel.Trading);
             }
             catch (Exception ex)
             {
@@ -283,16 +281,16 @@ namespace BoomerangQT
             {
                 DateTime currentTime = bar.TimeLeft;
 
-                Log($"UpdateRange - currentTime:{currentTime:yyyy-MM-dd HH:mm}");
-                Log($"UpdateRange - rangeStart:{rangeStart:yyyy-MM-dd HH:mm}");
-                Log($"UpdateRange - rangeEnd:{rangeEnd:yyyy-MM-dd HH:mm}");
+                Log($"UpdateRange - currentTime:{currentTime.AddHours(timeZoneOffset):yyyy-MM-dd HH:mm}");
+                //Log($"UpdateRange - rangeStart:{rangeStart:yyyy-MM-dd HH:mm}");
+                //Log($"UpdateRange - rangeEnd:{rangeEnd:yyyy-MM-dd HH:mm}");
 
                 if (currentTime >= rangeStart && currentTime <= rangeEnd)
                 {
                     rangeHigh = rangeHigh.HasValue ? Math.Max(rangeHigh.Value, bar.High) : bar.High;
                     rangeLow = rangeLow.HasValue ? Math.Min(rangeLow.Value, bar.Low) : bar.Low;
 
-                    Log($"Range updated. High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
+                    //Log($"Range updated. High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
 
                     numberDCA = 0;
                 }
@@ -300,13 +298,13 @@ namespace BoomerangQT
                 {
                     if (rangeHigh.HasValue && rangeLow.HasValue)
                     {
-                        Log($"Range detection ended. Final Range - High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
+                        Log($"Range for day {currentTime.AddHours(timeZoneOffset):yyyy-mm-dd} detection ended. Final Range - High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
 
                         strategyStatus = Status.BreakoutDetection;
                     }
                     else
                     {
-                        Log("No valid range detected during range period. Remaining in WaitingForRange.", StrategyLoggingLevel.Trading);
+                        //Log("No valid range detected during range period. Remaining in WaitingForRange.", StrategyLoggingLevel.Trading);
                         rangeHigh = null;
                         rangeLow = null;
                     }
@@ -325,21 +323,23 @@ namespace BoomerangQT
             {
                 DateTime currentTime = bar.TimeLeft;
 
-                Log($"DetectBreakout - currentTime:{currentTime:yyyy-MM-dd HH:mm}");
-                Log($"DetectBreakout - detectionStart:{detectionStart:yyyy-MM-dd HH:mm}");
-                Log($"DetectBreakout - detectionEnd:{detectionEnd:yyyy-MM-dd HH:mm}");
+                Log($"DetectBreakout - currentTime:{currentTime.AddHours(timeZoneOffset):yyyy-MM-dd HH:mm}");
+                //Log($"DetectBreakout - detectionStart:{detectionStart:yyyy-MM-dd HH:mm}");
+                //Log($"DetectBreakout - detectionEnd:{detectionEnd:yyyy-MM-dd HH:mm}");
 
                 if (currentTime >= detectionStart && currentTime <= detectionEnd)
                 {
                     if (rangeHigh.HasValue && bar.Close > rangeHigh.Value)
                     {
                         Log($"Breakout above range high detected at {bar.Close}.", StrategyLoggingLevel.Trading);
+                        Log($"{bar}");
                         PlaceSelectedEntry(Side.Sell);
                         strategyStatus = Status.ManagingTrade;
                     }
                     else if (rangeLow.HasValue && bar.Close < rangeLow.Value)
                     {
                         Log($"Breakout below range low detected at {bar.Close}.", StrategyLoggingLevel.Trading);
+                        Log($"{bar}");
                         PlaceSelectedEntry(Side.Buy);
                         strategyStatus = Status.ManagingTrade;
                     }

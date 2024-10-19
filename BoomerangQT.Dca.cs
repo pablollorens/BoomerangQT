@@ -43,6 +43,7 @@ namespace BoomerangQT
         {
             try
             {
+                Log($"dcaLevels: {dcaLevels}");
                 foreach (var dcaLevel in dcaLevels)
                 {
                     if (dcaLevel.IsFirstEntry)
@@ -71,9 +72,11 @@ namespace BoomerangQT
                     }
                     else
                     {
+                        Log($"Result of adding a DCA: {result}");
                         Log($"DCA Level {dcaLevel.LevelNumber} order placed at {triggerPrice}.", StrategyLoggingLevel.Trading);
                         dcaLevel.OrderId = result.OrderId;
-                        dcaOrders.Add(Core.Instance.GetOrderById(result.OrderId));
+                        dcaOrders.Add(result.OrderId);
+                        Log($"DCA order list: {dcaOrders.Count}");
                     }
                 }
             }
@@ -107,17 +110,21 @@ namespace BoomerangQT
         {
             try
             {
-                foreach (var order in dcaOrders)
+                Log($"dcaOrders: {dcaOrders}");
+                foreach (var orderId in dcaOrders)
                 {
-                    var existingOrder = Core.Instance.GetOrderById(order.Id);
+                    Log($"order: {orderId}");
+                    var existingOrder = Core.Instance.GetOrderById(orderId);
+                    Log($"existingOrder: {existingOrder}");
                     var cancelResult = Core.Instance.CancelOrder(existingOrder);
+                    Log($"cancelResult: {cancelResult}");
                     if (cancelResult.Status == TradingOperationResultStatus.Failure)
                     {
-                        Log($"Failed to cancel DCA order {order.Id}: {cancelResult.Message}", StrategyLoggingLevel.Error);
+                        Log($"Failed to cancel DCA order {orderId}: {cancelResult.Message}", StrategyLoggingLevel.Error);
                     }
                     else
                     {
-                        Log($"DCA order {order.Id} cancelled.", StrategyLoggingLevel.Trading);
+                        Log($"DCA order {orderId} cancelled.", StrategyLoggingLevel.Trading);
                     }
                 }
 

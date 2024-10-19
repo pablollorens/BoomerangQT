@@ -118,8 +118,7 @@ namespace BoomerangQT
                 // This will only happen once per range
                 if (currentPosition != null) return;
 
-                if (position.Symbol == null || symbol == null || !position.Symbol.Name.StartsWith(symbol.Name) || position.Account != account)
-                    return;
+                if (position.Symbol == null || symbol == null || !position.Symbol.Name.StartsWith(symbol.Name) || position.Account != account) return;
 
                 currentPosition = position;
 
@@ -396,6 +395,8 @@ namespace BoomerangQT
                 stopLossOrderId = null;
                 takeProfitOrderId = null;
 
+                Log($"SL and TP removed succesfully");
+
                 // Cancel DCA orders
                 CancelDcaOrders();
             }
@@ -413,7 +414,7 @@ namespace BoomerangQT
                 if (currentPosition == null) return;
                 if (currentPosition.Id != position.Id) return;
 
-                Log($"Position {position.Id} has been closed.", StrategyLoggingLevel.Trading);
+                Log($"OnPositionRemove event called - Position {position.Id} has been closed.", StrategyLoggingLevel.Trading);
 
                 // Cancel any remaining orders associated with the position
                 CancelAssociatedOrders();
