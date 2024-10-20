@@ -34,7 +34,7 @@ namespace BoomerangQT
         public double takeProfitPercentage = 0.5;
         public double takeProfitPoints = 10;
 
-        public double breakevenPlusPoints = 0;
+        public int breakevenPlusPoints = 0;
 
         public bool enableManualMode = false;
 

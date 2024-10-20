@@ -155,6 +155,7 @@ namespace BoomerangQT
             {
                 if (currentContractsUsed != currentPosition.Quantity)
                 {
+                    numberDCA++;
                     ProtectPosition();
                     Log($"currentContractsUsed Updated: {currentContractsUsed}", StrategyLoggingLevel.Trading);
                 }

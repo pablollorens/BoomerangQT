@@ -207,7 +207,7 @@ namespace BoomerangQT
                 });
 
                 // Breakeven Plus Points
-                settings.Add(new SettingItemDouble("breakevenPlusPoints", breakevenPlusPoints)
+                settings.Add(new SettingItemInteger("breakevenPlusPoints", breakevenPlusPoints)
                 {
                     Text = "Breakeven Plus Points",
                     SortIndex = 202,
@@ -280,7 +280,7 @@ namespace BoomerangQT
                 if (value.TryGetValue("takeProfitPoints", out double takeProfitPointsValue))
                     takeProfitPoints = takeProfitPointsValue;
 
-                if (value.TryGetValue("breakevenPlusPoints", out double breakevenPlusPointsValue))
+                if (value.TryGetValue("breakevenPlusPoints", out int breakevenPlusPointsValue))
                     breakevenPlusPoints = breakevenPlusPointsValue;
 
                 if (value.TryGetValue("enableManualMode", out bool enableManualModeValue))

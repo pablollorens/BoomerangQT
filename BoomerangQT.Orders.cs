@@ -34,10 +34,12 @@ namespace BoomerangQT
                         break;
                     case FirstEntryOption.DcaLevel2:
                         PlaceDCALimitOrder(2, side.Value); // This will be a simple limit order, later will be protected by the event
+                        numberDCA = 1; // This is like we took one DCA already, the 2nd one will come with the touch of the limit order we just placed
                         strategyStatus = Status.WaitingToEnter;
                         break;
                     case FirstEntryOption.DcaLevel3:
                         PlaceDCALimitOrder(3, side.Value); // This will be a simple limit order, later will be protected by the event
+                        numberDCA = 2; // This is like we took two DCAs already, the 3rd one will come with the touch of the limit order we just placed
                         strategyStatus = Status.WaitingToEnter;
                         break;
                 }
@@ -270,8 +272,6 @@ namespace BoomerangQT
 
                 Log($"Calculating Stop Loss Price. OpenPrice: {this.openPrice}, Side: {strategySide}, StopLossPercentage: {stopLossPercentage}");
 
-
-
                 double stopLossPrice = strategySide == Side.Buy
                     ? (double) this.openPrice - (double) this.openPrice * (stopLossPercentage / 100)
                     : (double) this.openPrice + (double) this.openPrice * (stopLossPercentage / 100);
@@ -294,6 +294,29 @@ namespace BoomerangQT
             try
             {
                 double takeProfitPrice = currentPosition.OpenPrice;
+
+                // Adjust for breakeven if conditions are met
+                if (enableBreakEven && numberDCA >= numberDCAToBE)
+                {
+                    double breakevenPrice = currentPosition.OpenPrice;
+
+                    Log($"Current Price before BE calculation: {currentPosition.OpenPrice}", StrategyLoggingLevel.Trading);
+                    Log($"BreakevenPlusPoints: {breakevenPlusPoints}", StrategyLoggingLevel.Trading);
+
+                    if (currentPosition.Side == Side.Buy)
+                    {
+                        breakevenPrice = breakevenPrice + (double) breakevenPlusPoints;
+                    } else
+                    {
+                        breakevenPrice = breakevenPrice - (double) breakevenPlusPoints;
+                    }
+                    Log($"New calculated Breakeven Price: {breakevenPrice}", StrategyLoggingLevel.Trading);
+                    takeProfitPrice = breakevenPrice;
+                    Log($"New calculated Take Profit Price: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+                    Log($"Breakeven conditions met. Adjusted Take Profit to breakeven price: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+
+                    return takeProfitPrice;
+                }
 
                 switch (takeProfitType)
                 {
@@ -324,16 +347,8 @@ namespace BoomerangQT
                         Log($"Take Profit set using fixed points: {takeProfitPrice}", StrategyLoggingLevel.Trading);
                         break;
                 }
-
-                // Adjust for breakeven if conditions are met
-                if (enableBreakEven && numberDCA >= numberDCAToBE)
-                {
-                    double breakevenPrice = currentPosition.OpenPrice + (currentPosition.Side == Side.Buy ? breakevenPlusPoints : -breakevenPlusPoints);
-                    takeProfitPrice = breakevenPrice;
-                    Log($"Breakeven conditions met. Adjusted Take Profit to breakeven price: {takeProfitPrice}", StrategyLoggingLevel.Trading);
-                }
-
                 return takeProfitPrice;
+
             }
             catch (Exception ex)
             {
