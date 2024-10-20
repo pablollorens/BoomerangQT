@@ -9,6 +9,7 @@ namespace BoomerangQT
     {
         WaitingForRange,
         BreakoutDetection,
+        WaitingToEnter,
         ManagingTrade
     }
 

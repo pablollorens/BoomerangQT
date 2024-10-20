@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using TradingPlatform.BusinessLayer;
+using TradingPlatform.BusinessLayer.Integration;
 using TradingPlatform.BusinessLayer.LocalOrders;
 
 namespace BoomerangQT
@@ -19,19 +20,25 @@ namespace BoomerangQT
                     Stop();
                 }
 
+                strategySide = side.Value;
+
                 switch (firstEntryOption)
                 {
                     case FirstEntryOption.MainEntry:
                         PlaceTrade(side.Value); // This will be protected
+                        strategyStatus = Status.ManagingTrade;
                         break;
                     case FirstEntryOption.DcaLevel1:
                         PlaceDCALimitOrder(1, side.Value); // This will be a simple limit order, later will be protected by the event
+                        strategyStatus = Status.WaitingToEnter;
                         break;
                     case FirstEntryOption.DcaLevel2:
                         PlaceDCALimitOrder(2, side.Value); // This will be a simple limit order, later will be protected by the event
+                        strategyStatus = Status.WaitingToEnter;
                         break;
                     case FirstEntryOption.DcaLevel3:
                         PlaceDCALimitOrder(3, side.Value); // This will be a simple limit order, later will be protected by the event
+                        strategyStatus = Status.WaitingToEnter;
                         break;
                 }
             }
@@ -77,6 +84,11 @@ namespace BoomerangQT
             try
             {
                 var dcaLevel = dcaLevels.FirstOrDefault(d => d.LevelNumber == levelNumber);
+
+                foreach (var level in dcaLevels)
+                {
+                    Log($"DCALevel: {level}", StrategyLoggingLevel.Trading);
+                }
 
                 if (dcaLevel == null)
                 {
@@ -124,7 +136,7 @@ namespace BoomerangQT
 
                 Log($"New position added. Side: {position.Side}, Quantity: {position.Quantity}, Open Price: {position.OpenPrice}", StrategyLoggingLevel.Trading);
 
-                if (strategyStatus == Status.ManagingTrade || enableManualMode)
+                if (strategyStatus == Status.ManagingTrade || strategyStatus == Status.WaitingToEnter || enableManualMode)
                 {
                     strategyStatus = Status.ManagingTrade;
 
@@ -256,11 +268,13 @@ namespace BoomerangQT
             {
                 if (stopLossGlobalPrice != null) return stopLossGlobalPrice;
 
-                Log($"Calculating Stop Loss Price. OpenPrice: {currentPosition.OpenPrice}, Side: {currentPosition.Side}, StopLossPercentage: {stopLossPercentage}");
+                Log($"Calculating Stop Loss Price. OpenPrice: {this.openPrice}, Side: {strategySide}, StopLossPercentage: {stopLossPercentage}");
 
-                double stopLossPrice = currentPosition.Side == Side.Buy
-                    ? currentPosition.OpenPrice - currentPosition.OpenPrice * (stopLossPercentage / 100)
-                    : currentPosition.OpenPrice + currentPosition.OpenPrice * (stopLossPercentage / 100);
+
+
+                double stopLossPrice = strategySide == Side.Buy
+                    ? (double) this.openPrice - (double) this.openPrice * (stopLossPercentage / 100)
+                    : (double) this.openPrice + (double) this.openPrice * (stopLossPercentage / 100);
 
                 Log($"Calculated Stop Loss Price: {stopLossPrice}", StrategyLoggingLevel.Trading);
 

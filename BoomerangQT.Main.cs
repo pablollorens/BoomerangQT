@@ -72,6 +72,8 @@ namespace BoomerangQT
         private HistoryItemBar previousBar = null;
         private double? currentContractsUsed = 0;
         private double? stopLossGlobalPrice = null;
+        private double? openPrice = null;
+        private Side? strategySide = null;
 
         private List<string> dcaOrders = new List<string>();
 
@@ -223,7 +225,12 @@ namespace BoomerangQT
                     if (closedBar == true) {
                         DetectBreakout(previousBar);
                     }
-                } else if (strategyStatus == Status.ManagingTrade)
+                }
+                else if (strategyStatus == Status.WaitingForRange)
+                {
+                    if (currentPosition != null) strategyStatus = Status.ManagingTrade;
+                }
+                else if (strategyStatus == Status.ManagingTrade)
                 {
                     // Monitor trade on every tick
                     // If manual mode is enabled and we enter a trade the status will become ManagingTrade, so basically we're always checking until a trade is in play
@@ -337,15 +344,15 @@ namespace BoomerangQT
                     {
                         Log($"Breakout above range high detected at {bar.Close}.", StrategyLoggingLevel.Trading);
                         Log($"{bar}");
+                        openPrice = bar.Close;
                         PlaceSelectedEntry(Side.Sell);
-                        strategyStatus = Status.ManagingTrade;
                     }
                     else if (rangeLow.HasValue && bar.Close < rangeLow.Value)
                     {
                         Log($"Breakout below range low detected at {bar.Close}.", StrategyLoggingLevel.Trading);
                         Log($"{bar}");
+                        openPrice = bar.Close;
                         PlaceSelectedEntry(Side.Buy);
-                        strategyStatus = Status.ManagingTrade;
                     }
                 }
                 else if (currentTime > detectionEnd)
@@ -408,6 +415,8 @@ namespace BoomerangQT
                 strategyStatus = Status.WaitingForRange;
                 currentContractsUsed = 0;
                 stopLossGlobalPrice = null;
+                openPrice = null;
+                strategySide = null;
 
                 // Cancel all DCA orders
                 CancelDcaOrders();

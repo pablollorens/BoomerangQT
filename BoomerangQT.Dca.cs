@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Linq;
 using TradingPlatform.BusinessLayer;
 
@@ -91,9 +92,16 @@ namespace BoomerangQT
         {
             try
             {
-                double dcaPrice = currentPosition.Side == Side.Buy
-                    ? currentPosition.OpenPrice - currentPosition.OpenPrice * (percentage / 100)
-                    : currentPosition.OpenPrice + currentPosition.OpenPrice * (percentage / 100);
+                if (this.openPrice == null)
+                {
+                    throw new Exception("Breakout not detected");
+                }
+
+                double entryPrice = openPrice ?? 0.0;
+
+                double dcaPrice = strategySide == Side.Buy
+                ? entryPrice - entryPrice * (percentage / 100)
+                : entryPrice + entryPrice * (percentage / 100);
 
                 Log($"Calculated DCA Price: {dcaPrice}", StrategyLoggingLevel.Trading);
 
