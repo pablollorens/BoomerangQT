@@ -115,16 +115,19 @@ namespace BoomerangQT
                 {
                     Log($"order: {orderId}");
                     var existingOrder = Core.Instance.GetOrderById(orderId);
-                    Log($"existingOrder: {existingOrder}");
-                    var cancelResult = Core.Instance.CancelOrder(existingOrder);
-                    Log($"cancelResult: {cancelResult}");
-                    if (cancelResult.Status == TradingOperationResultStatus.Failure)
+                    if (existingOrder != null)
                     {
-                        Log($"Failed to cancel DCA order {orderId}: {cancelResult.Message}", StrategyLoggingLevel.Error);
-                    }
-                    else
-                    {
-                        Log($"DCA order {orderId} cancelled.", StrategyLoggingLevel.Trading);
+                        Log($"existingOrder: {existingOrder}");
+                        var cancelResult = Core.Instance.CancelOrder(existingOrder);
+                        Log($"cancelResult: {cancelResult}");
+                        if (cancelResult.Status == TradingOperationResultStatus.Failure)
+                        {
+                            Log($"Failed to cancel DCA order {orderId}: {cancelResult.Message}", StrategyLoggingLevel.Error);
+                        }
+                        else
+                        {
+                            Log($"DCA order {orderId} cancelled.", StrategyLoggingLevel.Trading);
+                        }
                     }
                 }
 
@@ -139,9 +142,16 @@ namespace BoomerangQT
 
         private void CheckDcaExecutions()
         {
+            Log($"Entering CheckDcaExecutions");
             try
             {
-                foreach (var dcaLevel in dcaLevels.Where(d => !d.Executed && d.OrderId != null))
+                if (currentContractsUsed != currentPosition.Quantity)
+                {
+                    ProtectPosition();
+                    Log($"currentContractsUsed Updated: {currentContractsUsed}", StrategyLoggingLevel.Trading);
+                }
+
+                /*foreach (var dcaLevel in dcaLevels.Where(d => !d.Executed && d.OrderId != null))
                 {
                     var order = Core.Instance.GetOrderById(dcaLevel.OrderId);
 
@@ -154,7 +164,7 @@ namespace BoomerangQT
                         // Update the Take Profit since position size has changed
                         PlaceOrUpdateTakeProfit();
                     }
-                }
+                }*/
             }
             catch (Exception ex)
             {

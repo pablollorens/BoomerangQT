@@ -15,6 +15,7 @@ namespace BoomerangQT
                 meter.CreateObservableGauge("RangeLow", GetRangeLow);
                 meter.CreateObservableGauge("RangeHigh", GetRangeHigh);
                 meter.CreateObservableGauge("CurrentPnL", GetCurrentPnL);
+                meter.CreateObservableGauge("currentContractsUsed", GetCurrentContractsUsed);
                 meter.CreateObservableGauge("StrategyStatus", () => (double) strategyStatus);
             }
             catch (Exception ex)
@@ -31,6 +32,11 @@ namespace BoomerangQT
         private double GetRangeHigh()
         {
             return rangeHigh ?? 0.0;
+        }
+
+        private double GetCurrentContractsUsed()
+        {
+            return currentContractsUsed ?? 0.0;
         }
 
         private double GetCurrentPnL()

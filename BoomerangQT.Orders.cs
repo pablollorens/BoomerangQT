@@ -129,6 +129,9 @@ namespace BoomerangQT
                     strategyStatus = Status.ManagingTrade;
 
                     ProtectPosition(); // This needs to happen only the first time the position is opened
+                    
+                    // Place DCA orders
+                    PlaceDcaOrders(); // The ones not placed yet
                 }
             }
             catch (Exception ex)
@@ -145,13 +148,12 @@ namespace BoomerangQT
                 Log("Protecting position with SL, TP, and DCA.", StrategyLoggingLevel.Trading);
 
                 // Place SL with total potential position size
-                PlaceOrUpdateStopLoss(totalQuantity: GetTotalPotentialPositionSize());
+                PlaceOrUpdateStopLoss();
 
                 // Place initial TP
                 PlaceOrUpdateTakeProfit();
 
-                // Place DCA orders
-                PlaceDcaOrders(); // The ones not placed yet
+                currentContractsUsed = currentPosition.Quantity;
             }
             catch (Exception ex)
             {
@@ -160,7 +162,7 @@ namespace BoomerangQT
             }
         }
 
-        private void PlaceOrUpdateStopLoss(double totalQuantity)
+        private void PlaceOrUpdateStopLoss()
         {
             try
             {
@@ -168,14 +170,21 @@ namespace BoomerangQT
 
                 var stopLossPrice = CalculateStopLossPrice();
 
+                if (stopLossPrice == null)
+                {
+                    throw new Exception("Not possible to calculate global SL");
+                }
+                
+                CancelExistingOrder(stopLossOrderId);
+
                 var request = new PlaceOrderRequestParameters
                 {
                     Symbol = symbol,
                     Account = account,
                     Side = currentPosition.Side.Invert(),
                     OrderTypeId = "Stop",
-                    Quantity = totalQuantity,
-                    TriggerPrice = stopLossPrice,
+                    Quantity = currentPosition.Quantity,
+                    TriggerPrice = (double)stopLossPrice,
                     PositionId = currentPosition.Id,
                     AdditionalParameters = new List<SettingItem>
                     {
@@ -183,14 +192,13 @@ namespace BoomerangQT
                     }
                 };
 
-                CancelExistingOrder(stopLossOrderId);
-
                 var result = Core.Instance.PlaceOrder(request);
+
                 if (result.Status == TradingOperationResultStatus.Failure)
                     Log($"Failed to place Stop Loss order: {result.Message}", StrategyLoggingLevel.Error);
                 else
                 {
-                    Log($"Stop Loss order placed at {stopLossPrice} with quantity {totalQuantity}.", StrategyLoggingLevel.Trading);
+                    Log($"Stop Loss order placed at {stopLossPrice} with quantity {currentPosition.Quantity}.", StrategyLoggingLevel.Trading);
                     stopLossOrderId = result.OrderId;
                 }
             }
@@ -242,10 +250,12 @@ namespace BoomerangQT
             }
         }
 
-        private double CalculateStopLossPrice()
+        private double? CalculateStopLossPrice()
         {
             try
             {
+                if (stopLossGlobalPrice != null) return stopLossGlobalPrice;
+
                 Log($"Calculating Stop Loss Price. OpenPrice: {currentPosition.OpenPrice}, Side: {currentPosition.Side}, StopLossPercentage: {stopLossPercentage}");
 
                 double stopLossPrice = currentPosition.Side == Side.Buy
@@ -253,6 +263,8 @@ namespace BoomerangQT
                     : currentPosition.OpenPrice + currentPosition.OpenPrice * (stopLossPercentage / 100);
 
                 Log($"Calculated Stop Loss Price: {stopLossPrice}", StrategyLoggingLevel.Trading);
+
+                stopLossGlobalPrice = stopLossPrice;
 
                 return stopLossPrice;
             }
@@ -430,8 +442,12 @@ namespace BoomerangQT
             }
         }
 
-        private void OnOrderUpdated(object sender, LocalOrderEventArgs e)
+        /*private void OnOrderUpdated(object sender, LocalOrderEventArgs e)
         {
+            Log($"Enter OnOrderUpdated", StrategyLoggingLevel.Trading);
+            Log($"sender: {sender}", StrategyLoggingLevel.Info);
+            Log($"LocalOrderEventArgs: {e}", StrategyLoggingLevel.Info);
+
             try
             {
                 var order = e.LocalOrder;
@@ -446,9 +462,9 @@ namespace BoomerangQT
                 Log($"Exception in OnOrderUpdated: {ex.Message}", StrategyLoggingLevel.Error);
                 Stop();
             }
-        }
+        }*/
 
-        private double GetTotalPotentialPositionSize()
+        /*private double GetTotalPotentialPositionSize()
         {
             int totalQuantity = 0;
 
@@ -468,6 +484,6 @@ namespace BoomerangQT
             }
 
             return totalQuantity;
-        }
+        }*/
     }
 }

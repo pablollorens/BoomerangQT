@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TradingPlatform.BusinessLayer;
+using TradingPlatform.BusinessLayer.Utils;
 
 namespace BoomerangQT
 {
@@ -69,6 +70,8 @@ namespace BoomerangQT
         private string takeProfitOrderId;
         private Period selectedPeriod;
         private HistoryItemBar previousBar = null;
+        private double? currentContractsUsed = 0;
+        private double? stopLossGlobalPrice = null;
 
         private List<string> dcaOrders = new List<string>();
 
@@ -166,7 +169,9 @@ namespace BoomerangQT
                 historicalData.HistoryItemUpdated += OnHistoryItemUpdated;
                 Core.PositionAdded += OnPositionAdded;
                 Core.PositionRemoved += OnPositionRemoved;
-                Core.Instance.LocalOrders.Updated += OnOrderUpdated;
+                //Core.Instance.LocalOrders.Updated += OnOrderUpdated;
+
+                currentContractsUsed = 0;
             }
             catch (Exception ex)
             {
@@ -179,7 +184,6 @@ namespace BoomerangQT
         {
             try
             {
-
                 if (!(e.HistoryItem is HistoryItemBar currentBar)) return;
                 //if (historicalData.Count <= 1) return;
 
@@ -359,6 +363,10 @@ namespace BoomerangQT
 
         private void MonitorTrade(HistoryItemBar bar)
         {
+            DateTime currentTime = bar.TimeLeft;
+
+            Log($"MonitorTrade - currentTime:{currentTime.AddHours(timeZoneOffset):yyyy-MM-dd HH:mm}");
+
             try
             {
                 if (currentPosition == null)
@@ -367,8 +375,6 @@ namespace BoomerangQT
                     ResetStrategy();
                     return;
                 }
-
-                DateTime currentTime = bar.TimeLeft.AddHours(timeZoneOffset);
 
                 // Check if current time is beyond the position closure time
                 if (currentTime >= closePositionsAt)
@@ -400,6 +406,8 @@ namespace BoomerangQT
                 currentPosition = null;
                 numberDCA = 0;
                 strategyStatus = Status.WaitingForRange;
+                currentContractsUsed = 0;
+                stopLossGlobalPrice = null;
 
                 // Cancel all DCA orders
                 CancelDcaOrders();
@@ -482,7 +490,7 @@ namespace BoomerangQT
                 historicalData.HistoryItemUpdated -= OnHistoryItemUpdated;
                 Core.PositionAdded -= OnPositionAdded;
                 Core.PositionRemoved -= OnPositionRemoved;
-                Core.Instance.LocalOrders.Updated -= OnOrderUpdated;
+                //Core.Instance.LocalOrders.Updated -= OnOrderUpdated;
                 base.OnStop();
             }
             catch (Exception ex)
@@ -490,10 +498,5 @@ namespace BoomerangQT
                 Log($"Exception in OnStop: {ex.Message}", StrategyLoggingLevel.Error);
             }
         }
-
-        // The methods InitializeDcaLevels, PlaceSelectedEntry, ClosePosition, CancelDcaOrders, CheckDcaExecutions, etc.,
-        // are defined in other partial class files (BoomerangQT.Dca.cs, BoomerangQT.Orders.cs, etc.)
-
-        // Ensure that these methods are properly included in their respective files and accessible from this class.
     }
 }
