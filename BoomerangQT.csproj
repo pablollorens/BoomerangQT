@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <Platforms>AnyCPU</Platforms>
@@ -10,7 +10,7 @@
     <RootNamespace>BoomerangQT</RootNamespace>
     <StartAction>Program</StartAction>
     <StartProgram>C:\Users\Administrator\Desktop\Nitro\TradingPlatform\v1.140.23\Console.StarterNew.exe</StartProgram>
-    <StartArguments>--address 127.0.0.1 --port 53531</StartArguments>
+    <StartArguments>--address 127.0.0.1 --port 58018</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <OutputPath>C:\Users\Administrator\Desktop\Nitro\TradingPlatform\v1.140.23\..\..\Settings\Scripts\Strategies\BoomerangQT</OutputPath>

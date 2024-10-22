@@ -133,6 +133,9 @@ namespace BoomerangQT
                 {
                     Text = "Main entry quantity",
                     SortIndex = 80,
+                    Minimum=1,
+                    Maximum=50,
+                    Increment=1,
                     Relation = new SettingItemRelationVisibility("firstEntryOption", FirstEntryOption.MainEntry)
                 });
 

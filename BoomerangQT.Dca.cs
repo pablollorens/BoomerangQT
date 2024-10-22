@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.Design;
 using System.Linq;
 using TradingPlatform.BusinessLayer;
 
@@ -150,7 +149,7 @@ namespace BoomerangQT
 
         private void CheckDcaExecutions()
         {
-            Log($"Entering CheckDcaExecutions");
+            //Log($"Entering CheckDcaExecutions");
             try
             {
                 if (currentContractsUsed != currentPosition.Quantity)

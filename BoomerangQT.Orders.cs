@@ -128,6 +128,8 @@ namespace BoomerangQT
         {
             try
             {
+                if (strategyStatus == Status.WaitingForRange && !enableManualMode) return;
+
                 // if a position is being opened: by range breakout when main entry is active, manually (if enabled) or by an execution of a DCA order
                 // This will only happen once per range
                 if (currentPosition != null) return;
@@ -160,7 +162,7 @@ namespace BoomerangQT
             try
             {
                 Log("Protecting position with SL, TP, and DCA.", StrategyLoggingLevel.Trading);
-
+                
                 // Place SL with total potential position size
                 PlaceOrUpdateStopLoss();
 

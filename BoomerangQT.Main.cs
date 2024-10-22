@@ -75,6 +75,10 @@ namespace BoomerangQT
         private double? openPrice = null;
         private Side? strategySide = null;
 
+        private double totalNetPl;
+        private double totalGrossPl;
+        private double totalFee;
+
         private List<string> dcaOrders = new List<string>();
 
         // DCA Level Parameters
@@ -88,6 +92,10 @@ namespace BoomerangQT
 
         protected override void OnRun()
         {
+            this.totalNetPl = 0D;
+
+          
+
             startTime = startTime.ToLocalTime();
             endTime = endTime.ToLocalTime();
             detectionStartTime = detectionStartTime.ToLocalTime();
@@ -171,6 +179,7 @@ namespace BoomerangQT
                 historicalData.HistoryItemUpdated += OnHistoryItemUpdated;
                 Core.PositionAdded += OnPositionAdded;
                 Core.PositionRemoved += OnPositionRemoved;
+                Core.TradeAdded += this.Core_TradeAdded;
                 //Core.Instance.LocalOrders.Updated += OnOrderUpdated;
 
                 currentContractsUsed = 0;
@@ -212,11 +221,32 @@ namespace BoomerangQT
                 }
 
                 UpdateRangeTimes(currentBarTime.Date); // Updates range to the current day
-                
+
+                Log($"Date: {currentBarTime:yyyy-MM-dd HH:mm}", StrategyLoggingLevel.Trading);
+
                 if (strategyStatus == Status.WaitingForRange)
                 {
+                    //Log($"There are {Core.Positions.Count()} position in WaitingForRange", StrategyLoggingLevel.Trading);
+
+                    // We need to check if for any reason there is an open position on the asset we're trading and close them
+                    foreach (Position position in Core.Positions)
+                    {
+                        //ClosePositionRequestParameters request = new ClosePositionRequestParameters();
+                        //request.Position = position;
+                        Core.Instance.ClosePosition(position, position.Quantity);
+
+                    }
+
+                    //Log($"There are {Core.Positions.Count()} positions open now", StrategyLoggingLevel.Trading);
+
                     // Update range on every tick
                     UpdateRange(currentBar, closedBar);
+
+                    if (currentPosition != null)
+                    {
+                        Log($"currentPosition: {currentPosition}", StrategyLoggingLevel.Trading);
+                    }
+                    
                 }
                 
                 if (strategyStatus == Status.BreakoutDetection && !enableManualMode)
@@ -226,7 +256,7 @@ namespace BoomerangQT
                         DetectBreakout(previousBar);
                     }
                 }
-                else if (strategyStatus == Status.WaitingForRange)
+                else if (strategyStatus == Status.WaitingToEnter)
                 {
                     if (currentPosition != null) strategyStatus = Status.ManagingTrade;
                 }
@@ -244,6 +274,18 @@ namespace BoomerangQT
                 Log($"Exception in OnNewQuote: {ex.Message}", StrategyLoggingLevel.Error);
                 Stop();
             }
+        }
+
+        private void Core_TradeAdded(Trade obj)
+        {
+            if (obj.NetPnl != null)
+                this.totalNetPl += obj.NetPnl.Value;
+
+            if (obj.GrossPnl != null)
+                this.totalGrossPl += obj.GrossPnl.Value;
+
+            if (obj.Fee != null)
+                this.totalFee += obj.Fee.Value;
         }
 
         private void UpdateRangeTimes(DateTime date)
@@ -292,7 +334,7 @@ namespace BoomerangQT
             {
                 DateTime currentTime = bar.TimeLeft;
 
-                Log($"UpdateRange - currentTime:{currentTime.AddHours(timeZoneOffset):yyyy-MM-dd HH:mm}");
+                //Log($"UpdateRange - currentTime:{currentTime.AddHours(timeZoneOffset):yyyy-MM-dd HH:mm}");
                 //Log($"UpdateRange - rangeStart:{rangeStart:yyyy-MM-dd HH:mm}");
                 //Log($"UpdateRange - rangeEnd:{rangeEnd:yyyy-MM-dd HH:mm}");
 
@@ -334,7 +376,7 @@ namespace BoomerangQT
             {
                 DateTime currentTime = bar.TimeLeft;
 
-                Log($"DetectBreakout - currentTime:{currentTime.AddHours(timeZoneOffset):yyyy-MM-dd HH:mm}");
+                //Log($"DetectBreakout - currentTime:{currentTime.AddHours(timeZoneOffset):yyyy-MM-dd HH:mm}");
                 //Log($"DetectBreakout - detectionStart:{detectionStart:yyyy-MM-dd HH:mm}");
                 //Log($"DetectBreakout - detectionEnd:{detectionEnd:yyyy-MM-dd HH:mm}");
 
@@ -343,14 +385,14 @@ namespace BoomerangQT
                     if (rangeHigh.HasValue && bar.Close > rangeHigh.Value)
                     {
                         Log($"Breakout above range high detected at {bar.Close}.", StrategyLoggingLevel.Trading);
-                        Log($"{bar}");
+                        //Log($"{bar}");
                         openPrice = bar.Close;
                         PlaceSelectedEntry(Side.Sell);
                     }
                     else if (rangeLow.HasValue && bar.Close < rangeLow.Value)
                     {
                         Log($"Breakout below range low detected at {bar.Close}.", StrategyLoggingLevel.Trading);
-                        Log($"{bar}");
+                        //Log($"{bar}");
                         openPrice = bar.Close;
                         PlaceSelectedEntry(Side.Buy);
                     }
@@ -372,7 +414,7 @@ namespace BoomerangQT
         {
             DateTime currentTime = bar.TimeLeft;
 
-            Log($"MonitorTrade - currentTime:{currentTime.AddHours(timeZoneOffset):yyyy-MM-dd HH:mm}");
+            //Log($"MonitorTrade - currentTime:{currentTime.AddHours(timeZoneOffset):yyyy-MM-dd HH:mm}");
 
             try
             {
@@ -382,6 +424,7 @@ namespace BoomerangQT
                     ResetStrategy();
                     return;
                 }
+               
 
                 // Check if current time is beyond the position closure time
                 if (currentTime >= closePositionsAt)
@@ -500,6 +543,7 @@ namespace BoomerangQT
                 Core.PositionAdded -= OnPositionAdded;
                 Core.PositionRemoved -= OnPositionRemoved;
                 //Core.Instance.LocalOrders.Updated -= OnOrderUpdated;
+                Core.TradeAdded -= this.Core_TradeAdded;
                 base.OnStop();
             }
             catch (Exception ex)

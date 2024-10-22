@@ -18,6 +18,10 @@ namespace BoomerangQT
                 meter.CreateObservableGauge("CurrentContractsUsed", GetCurrentContractsUsed);
                 meter.CreateObservableGauge("NumberDCA", GetNumberDCA);
                 meter.CreateObservableGauge("StrategyStatus", () => (double) strategyStatus);
+
+                meter.CreateObservableCounter("total-pl-net", () => this.totalNetPl, description: "Total Net profit/loss");
+                meter.CreateObservableCounter("total-pl-gross", () => this.totalGrossPl, description: "Total Gross profit/loss");
+                meter.CreateObservableCounter("total-fee", () => this.totalFee, description: "Total fee");
             }
             catch (Exception ex)
             {
