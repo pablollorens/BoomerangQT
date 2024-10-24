@@ -222,20 +222,21 @@ namespace BoomerangQT
 
                 UpdateRangeTimes(currentBarTime.Date); // Updates range to the current day
 
-                Log($"Date: {currentBarTime:yyyy-MM-dd HH:mm}", StrategyLoggingLevel.Trading);
+                //Log($"Date: {currentBarTime:yyyy-MM-dd HH:mm}", StrategyLoggingLevel.Trading);
 
                 if (strategyStatus == Status.WaitingForRange)
                 {
                     //Log($"There are {Core.Positions.Count()} position in WaitingForRange", StrategyLoggingLevel.Trading);
 
                     // We need to check if for any reason there is an open position on the asset we're trading and close them
-                    foreach (Position position in Core.Positions)
-                    {
+                    
+                    //foreach (Position position in Core.Positions)
+                    //{
                         //ClosePositionRequestParameters request = new ClosePositionRequestParameters();
                         //request.Position = position;
-                        Core.Instance.ClosePosition(position, position.Quantity);
+                        //Core.Instance.ClosePosition(position, position.Quantity);
 
-                    }
+                    //}
 
                     //Log($"There are {Core.Positions.Count()} positions open now", StrategyLoggingLevel.Trading);
 
@@ -310,13 +311,21 @@ namespace BoomerangQT
                 //Log($"ClosePositionsAt: {closePositionsAt:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
 
                 if (detectionStart < rangeEnd)
+                {
+                    //Log($"Entramos aqui 1");
                     detectionStart = rangeEnd;
-
+                }
                 if (rangeEnd < rangeStart)
+                {
+                    //Log($"Entramos aqui 2");
                     rangeEnd = rangeEnd.AddDays(1);
+                }
 
                 if (closePositionsAt <= detectionEnd)
+                {
+                    //Log($"Entramos aqui 3");
                     closePositionsAt = closePositionsAt.AddDays(1);
+                }
 
                 //Log($"Range times updated. Range Start: {rangeStart:yyyy-MM-dd HH:mm}, Range End: {rangeEnd:yyyy-MM-dd HH:mm}");
                 //Log($"Detection Start: {detectionStart:yyyy-MM-dd HH:mm}, Detection End: {detectionEnd:yyyy-MM-dd HH:mm}, Close Positions At: {closePositionsAt:yyyy-MM-dd HH:mm}", StrategyLoggingLevel.Trading);
@@ -538,8 +547,7 @@ namespace BoomerangQT
                     historicalData.Dispose();
                     historicalData = null;
                 }
-
-                historicalData.HistoryItemUpdated -= OnHistoryItemUpdated;
+                
                 Core.PositionAdded -= OnPositionAdded;
                 Core.PositionRemoved -= OnPositionRemoved;
                 //Core.Instance.LocalOrders.Updated -= OnOrderUpdated;
