@@ -472,49 +472,5 @@ namespace BoomerangQT
                 Stop();
             }
         }
-
-        /*private void OnOrderUpdated(object sender, LocalOrderEventArgs e)
-        {
-            Log($"Enter OnOrderUpdated", StrategyLoggingLevel.Trading);
-            Log($"sender: {sender}", StrategyLoggingLevel.Info);
-            Log($"LocalOrderEventArgs: {e}", StrategyLoggingLevel.Info);
-
-            try
-            {
-                var order = e.LocalOrder;
-
-                if (dcaLevels.Any(d => d.OrderId == order.Id && order.IsFilled()))
-                {
-                    CheckDcaExecutions();
-                }
-            }
-            catch (Exception ex)
-            {
-                Log($"Exception in OnOrderUpdated: {ex.Message}", StrategyLoggingLevel.Error);
-                Stop();
-            }
-        }*/
-
-        /*private double GetTotalPotentialPositionSize()
-        {
-            int totalQuantity = 0;
-
-            // Add the quantity of the first entry level if it's a DCA level
-            if (firstEntryOption != FirstEntryOption.MainEntry)
-            {
-                foreach(DcaLevel dcaLevel in dcaLevels)
-                {
-                    if (dcaLevel.LevelNumber >= (int) firstEntryOption)
-                    {
-                        totalQuantity = totalQuantity + dcaLevel.Quantity;
-                    }
-                }
-            } else
-            {
-                totalQuantity = totalQuantity + initialQuantity;
-            }
-
-            return totalQuantity;
-        }*/
     }
 }

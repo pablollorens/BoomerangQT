@@ -43,7 +43,7 @@ namespace BoomerangQT
         {
             try
             {
-                Log($"dcaLevels: {dcaLevels}");
+                //Log($"dcaLevels: {dcaLevels}");
                 foreach (var dcaLevel in dcaLevels)
                 {
                     if (dcaLevel.IsFirstEntry)
@@ -117,16 +117,16 @@ namespace BoomerangQT
         {
             try
             {
-                Log($"dcaOrders: {dcaOrders}");
+                //Log($"dcaOrders: {dcaOrders}");
                 foreach (var orderId in dcaOrders)
                 {
-                    Log($"order: {orderId}");
+                    //Log($"order: {orderId}");
                     var existingOrder = Core.Instance.GetOrderById(orderId);
                     if (existingOrder != null)
                     {
-                        Log($"existingOrder: {existingOrder}");
+                        //Log($"existingOrder: {existingOrder}");
                         var cancelResult = Core.Instance.CancelOrder(existingOrder);
-                        Log($"cancelResult: {cancelResult}");
+                        //Log($"cancelResult: {cancelResult}");
                         if (cancelResult.Status == TradingOperationResultStatus.Failure)
                         {
                             Log($"Failed to cancel DCA order {orderId}: {cancelResult.Message}", StrategyLoggingLevel.Error);
@@ -158,21 +158,6 @@ namespace BoomerangQT
                     ProtectPosition();
                     Log($"currentContractsUsed Updated: {currentContractsUsed}", StrategyLoggingLevel.Trading);
                 }
-
-                /*foreach (var dcaLevel in dcaLevels.Where(d => !d.Executed && d.OrderId != null))
-                {
-                    var order = Core.Instance.GetOrderById(dcaLevel.OrderId);
-
-                    if (order != null && order.IsFilled())
-                    {
-                        dcaLevel.Executed = true;
-                        numberDCA++;
-                        Log($"DCA Level {dcaLevel.LevelNumber} executed.", StrategyLoggingLevel.Trading);
-
-                        // Update the Take Profit since position size has changed
-                        PlaceOrUpdateTakeProfit();
-                    }
-                }*/
             }
             catch (Exception ex)
             {

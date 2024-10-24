@@ -229,14 +229,17 @@ namespace BoomerangQT
                     //Log($"There are {Core.Positions.Count()} position in WaitingForRange", StrategyLoggingLevel.Trading);
 
                     // We need to check if for any reason there is an open position on the asset we're trading and close them
-                    
-                    //foreach (Position position in Core.Positions)
-                    //{
-                        //ClosePositionRequestParameters request = new ClosePositionRequestParameters();
-                        //request.Position = position;
-                        //Core.Instance.ClosePosition(position, position.Quantity);
-
-                    //}
+                    if (Core.Positions.Length > 0)
+                    {
+                        foreach (Position position in Core.Positions)
+                        {
+                            ClosePositionRequestParameters request = new ClosePositionRequestParameters();
+                            if (position.Symbol.Name.StartsWith(symbol.Name))
+                            {
+                                Core.Instance.ClosePosition(position);
+                            }
+                        }
+                    }
 
                     //Log($"There are {Core.Positions.Count()} positions open now", StrategyLoggingLevel.Trading);
 
@@ -550,7 +553,6 @@ namespace BoomerangQT
                 
                 Core.PositionAdded -= OnPositionAdded;
                 Core.PositionRemoved -= OnPositionRemoved;
-                //Core.Instance.LocalOrders.Updated -= OnOrderUpdated;
                 Core.TradeAdded -= this.Core_TradeAdded;
                 base.OnStop();
             }
