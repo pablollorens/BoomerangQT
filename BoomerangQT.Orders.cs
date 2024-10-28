@@ -298,7 +298,7 @@ namespace BoomerangQT
                 double takeProfitPrice = currentPosition.OpenPrice;
 
                 // Adjust for breakeven if conditions are met
-                if (enableBreakEven && numberDCA >= numberDCAToBE)
+                if ((enableBreakEven && breakevenOption == BreakevenOption.EveryDcaLevel) || (enableBreakEven && (int)breakevenOption == numberDCA))
                 {
                     double breakevenPrice = currentPosition.OpenPrice;
 

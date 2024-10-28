@@ -79,6 +79,8 @@ namespace BoomerangQT
         private double totalGrossPl;
         private double totalFee;
 
+        public BreakevenOption breakevenOption = BreakevenOption.None; // Set default as needed
+
         private List<string> dcaOrders = new List<string>();
 
         // DCA Level Parameters

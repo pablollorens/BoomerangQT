@@ -13,6 +13,15 @@ namespace BoomerangQT
         ManagingTrade
     }
 
+    public enum BreakevenOption
+    {
+        None = 0,
+        DcaLevel1 = 1,
+        DcaLevel2 = 2,
+        DcaLevel3 = 3,
+        EveryDcaLevel = 4
+    }
+
     public enum FirstEntryOption
     {
         MainEntry = 0,
@@ -186,25 +195,26 @@ namespace BoomerangQT
                 // DCA Levels
                 settings.AddRange(GetDcaSettings());
 
-                // Enable Break Even
+                // Enable Break Even setting
                 settings.Add(new SettingItemBoolean("enableBreakEven", enableBreakEven)
                 {
                     Text = "Enable Break Even",
                     SortIndex = 200
                 });
 
-                // DCA Level that triggers Breakeven
-                var dcaTriggersBE = new List<SelectItem>
+                // Breakeven Options
+                var breakevenOptions = new List<SelectItem>
                 {
-                    new SelectItem("DCA Level 1", 1),
-                    new SelectItem("DCA Level 2", 2),
-                    new SelectItem("DCA Level 3", 3)
+                    new SelectItem("None", BreakevenOption.None),
+                    new SelectItem("DCA Level 1", BreakevenOption.DcaLevel1),
+                    new SelectItem("DCA Level 2", BreakevenOption.DcaLevel2),
+                    new SelectItem("DCA Level 3", BreakevenOption.DcaLevel3),
+                    new SelectItem("Every DCA Level", BreakevenOption.EveryDcaLevel) // New option
                 };
 
-                // Number of DCA to Break Even
-                settings.Add(new SettingItemSelectorLocalized("numberDCAToBE", numberDCAToBE, dcaTriggersBE)
+                settings.Add(new SettingItemSelectorLocalized("breakevenOption", breakevenOption, breakevenOptions)
                 {
-                    Text = "DCA level that triggers Breakeven",
+                    Text = "Breakeven Trigger",
                     SortIndex = 201,
                     Relation = new SettingItemRelationEnability("enableBreakEven", true)
                 });
@@ -288,6 +298,10 @@ namespace BoomerangQT
 
                 if (value.TryGetValue("enableManualMode", out bool enableManualModeValue))
                     enableManualMode = enableManualModeValue;
+
+                if (value.TryGetValue("breakevenOption", out BreakevenOption breakevenOptionValue))
+                    breakevenOption = breakevenOptionValue;
+                
 
                 // DCA Levels
                 SetDcaSettings(value);
