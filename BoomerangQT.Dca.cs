@@ -13,29 +13,52 @@ namespace BoomerangQT
             {
                 dcaLevels.Clear();
 
-                if (enableDcaLevel1)
-                    dcaLevels.Add(new DcaLevel { TriggerPercentage = dcaPercentage1, Quantity = dcaQuantity1, LevelNumber = 1 });
+                // Add the DCA levels based on the selected first entry option
+                if (firstEntryOption == FirstEntryOption.MainEntry)
+                {
+                    AddDcaLevel(1, enableDcaLevel1, dcaPercentage1, dcaQuantity1);
+                    AddDcaLevel(2, enableDcaLevel2, dcaPercentage2, dcaQuantity2);
+                    AddDcaLevel(3, enableDcaLevel3, dcaPercentage3, dcaQuantity3);
+                }
+                else if (firstEntryOption == FirstEntryOption.DcaLevel1)
+                {
+                    AddDcaLevel(1, enableDcaLevel1, dcaPercentage1, dcaQuantity1);
+                    AddDcaLevel(2, enableDcaLevel2, dcaPercentage2, dcaQuantity2);
+                }
+                else if (firstEntryOption == FirstEntryOption.DcaLevel2)
+                {
+                    AddDcaLevel(2, enableDcaLevel2, dcaPercentage2, dcaQuantity2);
+                    AddDcaLevel(3, enableDcaLevel3, dcaPercentage3, dcaQuantity3);
+                }
+                else if (firstEntryOption == FirstEntryOption.DcaLevel3)
+                {
+                    AddDcaLevel(3, enableDcaLevel3, dcaPercentage3, dcaQuantity3);
+                }
 
-                if (enableDcaLevel2)
-                    dcaLevels.Add(new DcaLevel { TriggerPercentage = dcaPercentage2, Quantity = dcaQuantity2, LevelNumber = 2 });
-
-                if (enableDcaLevel3)
-                    dcaLevels.Add(new DcaLevel { TriggerPercentage = dcaPercentage3, Quantity = dcaQuantity3, LevelNumber = 3 });
+                Log("DCA levels initialized based on the first entry option.", StrategyLoggingLevel.Trading);
 
                 // Sort DCA levels by trigger percentage in ascending order
                 dcaLevels = dcaLevels.OrderBy(d => d.TriggerPercentage).ToList();
-
-                Log("DCA levels initialized.", StrategyLoggingLevel.Trading);
-
-                foreach (var dca in dcaLevels)
-                {
-                    Log($"DCA Level {dca.LevelNumber}: Trigger at {dca.TriggerPercentage * 100}% with quantity {dca.Quantity}", StrategyLoggingLevel.Trading);
-                }
             }
             catch (Exception ex)
             {
                 Log($"Exception in InitializeDcaLevels: {ex.Message}", StrategyLoggingLevel.Error);
                 Stop();
+            }
+        }
+
+        private void AddDcaLevel(int levelNumber, bool isEnabled, double triggerPercentage, int quantity)
+        {
+            if (isEnabled)
+            {
+                dcaLevels.Add(new DcaLevel
+                {
+                    LevelNumber = levelNumber,
+                    TriggerPercentage = triggerPercentage,
+                    Quantity = quantity,
+                    Executed = false
+                });
+                Log($"DCA Level {levelNumber} added: Trigger at {triggerPercentage * 100}% with quantity {quantity}", StrategyLoggingLevel.Trading);
             }
         }
 
