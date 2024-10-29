@@ -62,8 +62,8 @@ namespace BoomerangQT
 
                 var result = Core.Instance.PlaceOrder(new PlaceOrderRequestParameters
                 {
-                    Symbol = symbol,
-                    Account = account,
+                    Symbol = CurrentSymbol,
+                    Account = CurrentAccount,
                     Side = side,
                     OrderTypeId = OrderType.Market,
                     Quantity = quantityToUse,
@@ -104,8 +104,8 @@ namespace BoomerangQT
 
                 var result = Core.Instance.PlaceOrder(new PlaceOrderRequestParameters
                 {
-                    Symbol = symbol,
-                    Account = account,
+                    Symbol = CurrentSymbol,
+                    Account = CurrentAccount,
                     Side = side,
                     OrderTypeId = OrderType.Limit,
                     Price = CalculateDcaPrice(dcaLevel.TriggerPercentage),
@@ -134,7 +134,7 @@ namespace BoomerangQT
                 // This will only happen once per range
                 if (currentPosition != null) return;
 
-                if (position.Symbol == null || symbol == null || !position.Symbol.Name.StartsWith(symbol.Name) || position.Account != account) return;
+                if (position.Symbol == null || CurrentSymbol == null || !position.Symbol.Name.StartsWith(CurrentSymbol.Name) || position.Account != CurrentAccount) return;
 
                 currentPosition = position;
 
@@ -195,8 +195,8 @@ namespace BoomerangQT
 
                 var request = new PlaceOrderRequestParameters
                 {
-                    Symbol = symbol,
-                    Account = account,
+                    Symbol = CurrentSymbol,
+                    Account = CurrentAccount,
                     Side = currentPosition.Side.Invert(),
                     OrderTypeId = "Stop",
                     Quantity = currentPosition.Quantity,
@@ -235,8 +235,8 @@ namespace BoomerangQT
 
                 var request = new PlaceOrderRequestParameters
                 {
-                    Symbol = symbol,
-                    Account = account,
+                    Symbol = CurrentSymbol,
+                    Account = CurrentAccount,
                     Side = currentPosition.Side.Invert(),
                     OrderTypeId = "Limit",
                     Quantity = currentPosition.Quantity,
@@ -453,7 +453,7 @@ namespace BoomerangQT
         {
             try
             {
-                if (position.Symbol == null || symbol == null || !position.Symbol.Name.StartsWith(symbol.Name) || position.Account != account) return;
+                if (position.Symbol == null || CurrentSymbol == null || !position.Symbol.Name.StartsWith(CurrentSymbol.Name) || position.Account != CurrentAccount) return;
                 if (currentPosition == null) return;
                 if (currentPosition.Id != position.Id) return;
 

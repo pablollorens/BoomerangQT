@@ -1,6 +1,7 @@
 // BoomerangQT.Settings.cs
 using System;
 using System.Collections.Generic;
+using System.Security.Principal;
 using TradingPlatform.BusinessLayer;
 
 namespace BoomerangQT
@@ -46,14 +47,14 @@ namespace BoomerangQT
                 var settings = base.Settings;
 
                 // Symbol
-                settings.Add(new SettingItemSymbol("symbol", symbol)
+                settings.Add(new SettingItemSymbol("symbol", CurrentSymbol)
                 {
                     Text = "Symbol",
                     SortIndex = 10
                 });
 
                 // Account
-                settings.Add(new SettingItemAccount("account", account)
+                settings.Add(new SettingItemAccount("account", CurrentAccount)
                 {
                     Text = "Account",
                     SortIndex = 20
@@ -243,10 +244,10 @@ namespace BoomerangQT
                 base.Settings = value;
 
                 if (value.TryGetValue("symbol", out Symbol symbolValue))
-                    symbol = symbolValue;
+                    CurrentSymbol = symbolValue;
 
                 if (value.TryGetValue("account", out Account accountValue))
-                    account = accountValue;
+                    CurrentAccount = accountValue;
 
                 if (value.TryGetValue("timeframe", out string timeframeValue))
                     timeframe = timeframeValue;

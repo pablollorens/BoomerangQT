@@ -76,8 +76,8 @@ namespace BoomerangQT
 
                     var request = new PlaceOrderRequestParameters
                     {
-                        Symbol = symbol,
-                        Account = account,
+                        Symbol = CurrentSymbol,
+                        Account = CurrentAccount,
                         Side = currentPosition.Side,
                         OrderTypeId = "Limit",
                         Quantity = dcaLevel.Quantity,
