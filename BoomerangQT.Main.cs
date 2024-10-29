@@ -85,7 +85,7 @@ namespace BoomerangQT
         private double totalGrossPl;
         private double totalFee;
 
-        public BreakevenOption breakevenOption = BreakevenOption.None; // Set default as needed
+        public BreakevenOption breakevenOption = BreakevenOption.EveryDcaLevel; // Set default as needed
         public TpAdjustmentType tpAdjustmentType = TpAdjustmentType.FixedPoints;
         public double tpAdjustmentValue = 0.0;
 
@@ -112,38 +112,6 @@ namespace BoomerangQT
             Log($"Range Start (Eastern): {rangeStart}", StrategyLoggingLevel.Trading);
 
             this.totalNetPl = 0D;
-
-            //startTime = startTime.ToLocalTime();
-            //endTime = endTime.ToLocalTime();
-            //detectionStartTime = detectionStartTime.ToLocalTime();
-            //detectionEndTime = detectionEndTime.ToLocalTime();
-            //closePositionsAtTime = closePositionsAtTime.ToLocalTime();
-
-            //Log($"StartTime: {startTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
-            //Log($"endTime: {endTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
-            //Log($"detectionStartTime: {detectionStartTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
-            //Log($"detectionEndTime: {detectionEndTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
-            //Log($"ClosePositionsAt: {closePositionsAtTime:yyyy-MM-dd HH:mm:ss}, kind: {startTime.Kind}", StrategyLoggingLevel.Trading);
-
-            //startTime.AddHours(timeZoneOffset);
-            //endTime.AddHours(timeZoneOffset);
-            //detectionStartTime.AddHours(timeZoneOffset);
-            //detectionEndTime.AddHours(timeZoneOffset);
-            //closePositionsAtTime.AddHours(timeZoneOffset);
-
-            // Combine the date with the input times, treating input times as local times without time zone conversions
-            //rangeStart = new DateTime(startTime.Year, startTime.Month, startTime.Day, startTime.Hour, startTime.Minute, 0);
-            //rangeEnd = new DateTime(endTime.Year, endTime.Month, endTime.Day, endTime.Hour, endTime.Minute, 0);
-            //detectionStart = new DateTime(detectionStartTime.Year, detectionStartTime.Month, detectionStartTime.Day, detectionStartTime.Hour, detectionStartTime.Minute, 0);
-            //detectionEnd = new DateTime(detectionEndTime.Year, detectionEndTime.Month, detectionEndTime.Day, detectionEndTime.Hour, detectionEndTime.Minute, 0);
-            //closePositionsAt = new DateTime(closePositionsAtTime.Year, closePositionsAtTime.Month, closePositionsAtTime.Day, closePositionsAtTime.Hour, closePositionsAtTime.Minute, 0);
-
-            //Log($"Timeoffset: {timeZoneOffset}");
-            //Log($"StartTime: {rangeStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            //Log($"endTime: {rangeEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            //Log($"detectionStartTime: {detectionStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            //Log($"detectionEndTime: {detectionEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            //Log($"ClosePositionsAt: {closePositionsAt:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
 
             try
             {
@@ -406,7 +374,7 @@ namespace BoomerangQT
                 {
                     if (rangeHigh.HasValue && rangeLow.HasValue)
                     {
-                        Log($"Range for day {currentTime:yyyy-mm-dd} detection ended. Final Range - High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
+                        Log($"Range for day {currentTime:yyyy-MM-dd} detection ended. Final Range - High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
 
                         strategyStatus = Status.BreakoutDetection;
                     }

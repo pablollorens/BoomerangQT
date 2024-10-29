@@ -297,8 +297,8 @@ namespace BoomerangQT
             {
                 double takeProfitPrice = currentPosition.OpenPrice;
 
-                // Adjust for breakeven if conditions are met
-                if ((enableBreakEven && breakevenOption == BreakevenOption.EveryDcaLevel) || (enableBreakEven && (int)breakevenOption == numberDCA))
+                // Adjust for breakeven if conditions are met, basically we enter BE functionality if DCA is equal to the configured one, or if the configured option in "every dca level"
+                if ((enableBreakEven && breakevenOption == BreakevenOption.EveryDcaLevel) || (enableBreakEven && (int) breakevenOption == numberDCA))
                 {
                     double breakevenPrice = currentPosition.OpenPrice;
 

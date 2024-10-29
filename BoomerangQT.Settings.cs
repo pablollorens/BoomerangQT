@@ -16,7 +16,6 @@ namespace BoomerangQT
 
     public enum BreakevenOption
     {
-        None = 0,
         DcaLevel1 = 1,
         DcaLevel2 = 2,
         DcaLevel3 = 3,
@@ -213,7 +212,6 @@ namespace BoomerangQT
                 // Breakeven Options
                 var breakevenOptions = new List<SelectItem>
                 {
-                    new SelectItem("None", BreakevenOption.None),
                     new SelectItem("DCA Level 1", BreakevenOption.DcaLevel1),
                     new SelectItem("DCA Level 2", BreakevenOption.DcaLevel2),
                     new SelectItem("DCA Level 3", BreakevenOption.DcaLevel3),
