@@ -39,6 +39,12 @@ namespace BoomerangQT
 
                 // Sort DCA levels by trigger percentage in ascending order
                 dcaLevels = dcaLevels.OrderBy(d => d.TriggerPercentage).ToList();
+
+                // Print the activated DCA levels
+                foreach (var dcaLevel in dcaLevels)
+                {
+                    Log($"Activated DCA Level {dcaLevel.LevelNumber}: Trigger Percentage = {dcaLevel.TriggerPercentage}, Quantity = {dcaLevel.Quantity}", StrategyLoggingLevel.Trading);
+                }
             }
             catch (Exception ex)
             {

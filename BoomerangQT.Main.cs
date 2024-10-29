@@ -194,6 +194,12 @@ namespace BoomerangQT
             // Convert closePositionsAtTime to DateTimeOffset in Eastern Time
             closePositionsAt = new DateTimeOffset(today.Year, today.Month, today.Day,closePositionsAtTime.Hour, closePositionsAtTime.Minute, closePositionsAtTime.Second, easternZone.BaseUtcOffset);
             closePositionsAt = TimeZoneInfo.ConvertTime(closePositionsAt, easternZone);
+
+            Log($"StartTime: {rangeStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"endTime: {rangeEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"detectionStartTime: {detectionStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"detectionEndTime: {detectionEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"ClosePositionsAt: {closePositionsAt:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
         }
 
 
