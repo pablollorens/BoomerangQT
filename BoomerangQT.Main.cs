@@ -176,30 +176,30 @@ namespace BoomerangQT
             DateTime today = DateTime.Today;
 
             // Convert startTime to DateTimeOffset in Eastern Time
-            rangeStart = new DateTimeOffset(today.Year, today.Month, today.Day,startTime.Hour, startTime.Minute, startTime.Second, easternZone.BaseUtcOffset);
+            rangeStart = new DateTimeOffset(today.Year, today.Month, today.Day,startTime.Hour, startTime.Minute, startTime.Second, TimeSpan.Zero);
             rangeStart = TimeZoneInfo.ConvertTime(rangeStart, easternZone);
 
             // Convert endTime to DateTimeOffset in Eastern Time
-            rangeEnd = new DateTimeOffset(today.Year, today.Month, today.Day,endTime.Hour, endTime.Minute, endTime.Second, easternZone.BaseUtcOffset);
+            rangeEnd = new DateTimeOffset(today.Year, today.Month, today.Day,endTime.Hour, endTime.Minute, endTime.Second, TimeSpan.Zero);
             rangeEnd = TimeZoneInfo.ConvertTime(rangeEnd, easternZone);
 
             // Convert detectionStartTime to DateTimeOffset in Eastern Time
-            detectionStart = new DateTimeOffset(today.Year, today.Month, today.Day,detectionStartTime.Hour, detectionStartTime.Minute, detectionStartTime.Second, easternZone.BaseUtcOffset);
+            detectionStart = new DateTimeOffset(today.Year, today.Month, today.Day,detectionStartTime.Hour, detectionStartTime.Minute, detectionStartTime.Second, TimeSpan.Zero);
             detectionStart = TimeZoneInfo.ConvertTime(detectionStart, easternZone);
 
             // Convert detectionEndTime to DateTimeOffset in Eastern Time
-            detectionEnd = new DateTimeOffset(today.Year, today.Month, today.Day,detectionEndTime.Hour, detectionEndTime.Minute, detectionEndTime.Second, easternZone.BaseUtcOffset);
+            detectionEnd = new DateTimeOffset(today.Year, today.Month, today.Day,detectionEndTime.Hour, detectionEndTime.Minute, detectionEndTime.Second, TimeSpan.Zero);
             detectionEnd = TimeZoneInfo.ConvertTime(detectionEnd, easternZone);
 
             // Convert closePositionsAtTime to DateTimeOffset in Eastern Time
-            closePositionsAt = new DateTimeOffset(today.Year, today.Month, today.Day,closePositionsAtTime.Hour, closePositionsAtTime.Minute, closePositionsAtTime.Second, easternZone.BaseUtcOffset);
+            closePositionsAt = new DateTimeOffset(today.Year, today.Month, today.Day,closePositionsAtTime.Hour, closePositionsAtTime.Minute, closePositionsAtTime.Second, TimeSpan.Zero);
             closePositionsAt = TimeZoneInfo.ConvertTime(closePositionsAt, easternZone);
 
-            Log($"StartTime: {rangeStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            Log($"endTime: {rangeEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            Log($"detectionStartTime: {detectionStart:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            Log($"detectionEndTime: {detectionEnd:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-            Log($"ClosePositionsAt: {closePositionsAt:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"StartTime: {rangeStart.DateTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"endTime: {rangeEnd.DateTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"detectionStartTime: {detectionStart.DateTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"detectionEndTime: {detectionEnd.DateTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+            Log($"ClosePositionsAt: {closePositionsAt.DateTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
         }
 
 
