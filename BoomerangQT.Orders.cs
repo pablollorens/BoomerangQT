@@ -302,19 +302,45 @@ namespace BoomerangQT
                 {
                     double breakevenPrice = currentPosition.OpenPrice;
 
-                    Log($"Current Price before BE calculation: {currentPosition.OpenPrice}", StrategyLoggingLevel.Trading);
-                    Log($"BreakevenPlusPoints: {breakevenPlusPoints}", StrategyLoggingLevel.Trading);
+                    // Adjust the TP according to the TP adjustment settings
+                    double adjustment = 0.0;
+
+                    switch ((TpAdjustmentType)tpAdjustmentType)
+                    {
+                        case TpAdjustmentType.FixedPoints:
+                            adjustment = tpAdjustmentValue;
+                            break;
+
+                        case TpAdjustmentType.FixedPercentage:
+                            adjustment = breakevenPrice * (tpAdjustmentValue / 100.0);
+                            break;
+
+                        case TpAdjustmentType.RangeSize:
+                            if (rangeHigh.HasValue && rangeLow.HasValue)
+                            {
+                                adjustment = rangeHigh.Value - rangeLow.Value;
+                            }
+                            else
+                            {
+                                throw new Exception("Range values are not set. Cannot calculate TP adjustment based on Range Size.");
+                            }
+                            break;
+                    }
 
                     if (currentPosition.Side == Side.Buy)
                     {
-                        breakevenPrice = breakevenPrice + (double) breakevenPlusPoints;
-                    } else
-                    {
-                        breakevenPrice = breakevenPrice - (double) breakevenPlusPoints;
+                        breakevenPrice = breakevenPrice + (double) adjustment;
                     }
+                    else
+                    {
+                        breakevenPrice = breakevenPrice - (double) adjustment;
+                    }
+
+                    Log($"Current Price before BE calculation: {currentPosition.OpenPrice}", StrategyLoggingLevel.Trading);
+                    Log($"Type of Breakeven: {(TpAdjustmentType)tpAdjustmentType}", StrategyLoggingLevel.Trading);
+                    Log($"Breakeven value: {adjustment}", StrategyLoggingLevel.Trading);
                     Log($"New calculated Breakeven Price: {breakevenPrice}", StrategyLoggingLevel.Trading);
                     takeProfitPrice = breakevenPrice;
-                    Log($"New calculated Take Profit Price: {takeProfitPrice}", StrategyLoggingLevel.Trading);
                     Log($"Breakeven conditions met. Adjusted Take Profit to breakeven price: {takeProfitPrice}", StrategyLoggingLevel.Trading);
 
                     return takeProfitPrice;

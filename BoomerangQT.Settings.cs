@@ -22,6 +22,13 @@ namespace BoomerangQT
         EveryDcaLevel = 4
     }
 
+    public enum TpAdjustmentType
+    {
+        FixedPoints,
+        FixedPercentage,
+        RangeSize
+    }
+
     public enum FirstEntryOption
     {
         MainEntry = 0,
@@ -74,16 +81,16 @@ namespace BoomerangQT
                 });
 
                 // Time Zone
-                var timeZoneOptions = new List<SelectItem>();
-                for (int i = -12; i <= 14; i++)
-                {
-                    timeZoneOptions.Add(new SelectItem($"UTC{(i >= 0 ? "+" : "")}{i}:00", i));
-                }
-                settings.Add(new SettingItemSelectorLocalized("timeZoneOffset", timeZoneOffset, timeZoneOptions)
-                {
-                    Text = "Time Zone",
-                    SortIndex = 26
-                });
+                //var timeZoneOptions = new List<SelectItem>();
+                //for (int i = -12; i <= 14; i++)
+                //{
+                //    timeZoneOptions.Add(new SelectItem($"UTC{(i >= 0 ? "+" : "")}{i}:00", i));
+                //}
+                //settings.Add(new SettingItemSelectorLocalized("timeZoneOffset", timeZoneOffset, timeZoneOptions)
+                //{
+                //    Text = "Time Zone",
+                //    SortIndex = 26
+                //});
 
                 // Time Settings
                 settings.Add(new SettingItemDateTime("startTime", startTime)
@@ -219,13 +226,42 @@ namespace BoomerangQT
                     Relation = new SettingItemRelationEnability("enableBreakEven", true)
                 });
 
-                // Breakeven Plus Points
-                settings.Add(new SettingItemInteger("breakevenPlusPoints", breakevenPlusPoints)
+
+                // TP Adjustment Type
+                var tpAdjustmentOptions = new List<SelectItem>
                 {
-                    Text = "Breakeven Plus Points",
-                    SortIndex = 202,
+                    new SelectItem("Fixed Points", TpAdjustmentType.FixedPoints),
+                    new SelectItem("Fixed Percentage", TpAdjustmentType.FixedPercentage),
+                    new SelectItem("Range Size", TpAdjustmentType.RangeSize)
+                };
+
+                settings.Add(new SettingItemSelectorLocalized("tpAdjustmentType", tpAdjustmentType, tpAdjustmentOptions)
+                {
+                    Text = "TP Adjustment Type",
+                    SortIndex = 203,
                     Relation = new SettingItemRelationEnability("enableBreakEven", true)
                 });
+
+                // TP Adjustment Value
+                var tpAdjustmentValueSetting = new SettingItemDouble("tpAdjustmentValue", tpAdjustmentValue)
+                {
+                    Text = "TP Adjustment Value",
+                    SortIndex = 204,
+                    Minimum = 0.01,
+                    Maximum = 5,
+                    Increment = 0.01,
+                    DecimalPlaces = 2,
+                    Relation = new SettingItemRelationEnability("enableBreakEven", true)
+                };
+
+                // Set visibility based on TP Adjustment Type
+                tpAdjustmentValueSetting.Relation = new SettingItemRelationVisibility("tpAdjustmentType", new object[]
+                {
+                    (int)TpAdjustmentType.FixedPoints,
+                    (int)TpAdjustmentType.FixedPercentage
+                });
+
+                settings.Add(tpAdjustmentValueSetting);
 
                 // Customize DateTime fields to show only times
                 foreach (var settingItem in settings)
@@ -251,8 +287,8 @@ namespace BoomerangQT
                 if (value.TryGetValue("timeframe", out string timeframeValue))
                     timeframe = timeframeValue;
 
-                if (value.TryGetValue("timeZoneOffset", out int timeZoneOffsetValue))
-                    timeZoneOffset = timeZoneOffsetValue;
+                //if (value.TryGetValue("timeZoneOffset", out int timeZoneOffsetValue))
+                //    timeZoneOffset = timeZoneOffsetValue;
 
                 if (value.TryGetValue("startTime", out DateTime startTimeValue))
                     startTime = startTimeValue;
@@ -284,24 +320,24 @@ namespace BoomerangQT
                 if (value.TryGetValue("enableBreakEven", out bool enableBreakEvenValue))
                     enableBreakEven = enableBreakEvenValue;
 
-                if (value.TryGetValue("numberDCAToBE", out int numberDCAToBEValue))
-                    numberDCAToBE = numberDCAToBEValue;
-
                 if (value.TryGetValue("takeProfitPercentage", out double takeProfitPercentageValue))
                     takeProfitPercentage = takeProfitPercentageValue;
 
                 if (value.TryGetValue("takeProfitPoints", out double takeProfitPointsValue))
                     takeProfitPoints = takeProfitPointsValue;
 
-                if (value.TryGetValue("breakevenPlusPoints", out int breakevenPlusPointsValue))
-                    breakevenPlusPoints = breakevenPlusPointsValue;
-
                 if (value.TryGetValue("enableManualMode", out bool enableManualModeValue))
                     enableManualMode = enableManualModeValue;
 
                 if (value.TryGetValue("breakevenOption", out BreakevenOption breakevenOptionValue))
                     breakevenOption = breakevenOptionValue;
-                
+
+                if (value.TryGetValue("tpAdjustmentType", out TpAdjustmentType tpAdjustmentTypeValue))
+                    tpAdjustmentType = tpAdjustmentTypeValue;
+
+                if (value.TryGetValue("tpAdjustmentValue", out double tpAdjustmentValueValue))
+                    tpAdjustmentValue = tpAdjustmentValueValue;
+
 
                 // DCA Levels
                 SetDcaSettings(value);
