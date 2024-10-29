@@ -8,11 +8,13 @@ using TradingPlatform.BusinessLayer.Utils;
 
 namespace BoomerangQT
 {
-    public partial class BoomerangQT : Strategy
+    public partial class BoomerangQT : Strategy, ICurrentSymbol, ICurrentAccount
     {
         // Strategy parameters that are used in Main.cs
-        private Symbol symbol;
-        public Account account;
+        //private Symbol symbol;
+        public Symbol CurrentSymbol { get; set; }
+        //public Account account;
+        public Account CurrentAccount { get; set; }
         public string timeframe = "MIN1";
 
         //public DateTime startTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 6, 25, 0);
@@ -54,7 +56,7 @@ namespace BoomerangQT
         public double dcaPercentage3 = 0.35;
         public int dcaQuantity3 = 1;
 
-        public override string[] MonitoringConnectionsIds => symbol != null ? new[] { symbol.ConnectionId } : new string[0];
+        public override string[] MonitoringConnectionsIds => CurrentSymbol != null ? new[] { CurrentSymbol.ConnectionId } : new string[0];
 
         // Private variables
         private HistoricalData historicalData;
@@ -154,14 +156,14 @@ namespace BoomerangQT
                     return;
                 }
 
-                if (symbol == null)
+                if (CurrentSymbol == null)
                 {
                     Log("Symbol is not specified.", StrategyLoggingLevel.Error);
                     Stop();
                     return;
                 }
 
-                Log($"Symbol initialized: {symbol.Name}", StrategyLoggingLevel.Trading);
+                Log($"Symbol initialized: {CurrentSymbol.Name}", StrategyLoggingLevel.Trading);
 
                 // Map the timeframe string to the Period enum
                 selectedPeriod = timeframe.ToUpper() switch
@@ -173,7 +175,7 @@ namespace BoomerangQT
                     _ => Period.MIN5
                 };
 
-                historicalData = symbol.GetHistory(selectedPeriod, DateTime.Now);
+                historicalData = CurrentSymbol.GetHistory(selectedPeriod, DateTime.Now);
 
                 if (historicalData == null)
                 {
@@ -273,7 +275,7 @@ namespace BoomerangQT
                         foreach (Position position in Core.Positions)
                         {
                             ClosePositionRequestParameters request = new ClosePositionRequestParameters();
-                            if (position.Symbol.Name.StartsWith(symbol.Name))
+                            if (position.Symbol.Name.StartsWith(CurrentSymbol.Name))
                             {
                                 Core.Instance.ClosePosition(position);
                             }
@@ -536,19 +538,19 @@ namespace BoomerangQT
         private bool ValidateInputs()
         {
             try { 
-                if (symbol == null)
+                if (CurrentSymbol == null)
                 {
                     Log("Symbol is not specified.", StrategyLoggingLevel.Error);
                     return false;
                 }
 
-                if (account == null)
+                if (CurrentAccount == null)
                 {
                     Log("Account is not specified.", StrategyLoggingLevel.Error);
                     return false;
                 }
 
-                if (symbol.ConnectionId != account.ConnectionId)
+                if (CurrentSymbol.ConnectionId != CurrentAccount.ConnectionId)
                 {
                     Log("Symbol and Account have different connection IDs.", StrategyLoggingLevel.Error);
                     return false;
