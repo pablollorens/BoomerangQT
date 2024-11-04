@@ -24,9 +24,9 @@ namespace BoomerangQT
 
     public enum TpAdjustmentType
     {
-        FixedPoints,
-        FixedPercentage,
-        RangeSize
+        FixedPoints = 0,
+        FixedPercentage = 1,
+        RangeSize = 2
     }
 
     public enum FirstEntryOption
@@ -202,12 +202,14 @@ namespace BoomerangQT
                 // DCA Levels
                 settings.AddRange(GetDcaSettings());
 
-                // Enable Break Even setting
-                settings.Add(new SettingItemBoolean("enableBreakEven", enableBreakEven)
+                SettingItem enableBreakEvenSettingItem = new SettingItemBoolean("enableBreakEven", enableBreakEven)
                 {
                     Text = "Enable Break Even",
                     SortIndex = 200
-                });
+                };
+
+                // Enable Break Even setting
+                settings.Add(enableBreakEvenSettingItem);
 
                 // Breakeven Options
                 var breakevenOptions = new List<SelectItem>
@@ -234,12 +236,14 @@ namespace BoomerangQT
                     new SelectItem("Range Size", TpAdjustmentType.RangeSize)
                 };
 
-                settings.Add(new SettingItemSelectorLocalized("tpAdjustmentType", tpAdjustmentType, tpAdjustmentOptions)
+                SettingItem tpAdjustmentTypeSettingItem = new SettingItemSelectorLocalized("tpAdjustmentType", tpAdjustmentType, tpAdjustmentOptions)
                 {
                     Text = "TP Adjustment Type",
                     SortIndex = 203,
                     Relation = new SettingItemRelationEnability("enableBreakEven", true)
-                });
+                };
+
+                settings.Add(tpAdjustmentTypeSettingItem);
 
                 // TP Adjustment Value
                 var tpAdjustmentValueSetting = new SettingItemDouble("tpAdjustmentValue", tpAdjustmentValue)
@@ -247,18 +251,14 @@ namespace BoomerangQT
                     Text = "TP Adjustment Value",
                     SortIndex = 204,
                     Minimum = 0.01,
-                    Maximum = 5,
+                    Maximum = 100,
                     Increment = 0.01,
                     DecimalPlaces = 2,
-                    Relation = new SettingItemRelationEnability("enableBreakEven", true)
+                    Relation = new SettingItemMultipleRelation(
+                        new SettingItemRelationEnability("enableBreakEven", true),
+                        new SettingItemRelationVisibility("tpAdjustmentType", [TpAdjustmentType.FixedPoints, TpAdjustmentType.FixedPercentage])
+                    )
                 };
-
-                // Set visibility based on TP Adjustment Type
-                tpAdjustmentValueSetting.Relation = new SettingItemRelationVisibility("tpAdjustmentType", new object[]
-                {
-                    (int)TpAdjustmentType.FixedPoints,
-                    (int)TpAdjustmentType.FixedPercentage
-                });
 
                 settings.Add(tpAdjustmentValueSetting);
 
@@ -336,7 +336,6 @@ namespace BoomerangQT
 
                 if (value.TryGetValue("tpAdjustmentValue", out double tpAdjustmentValueValue))
                     tpAdjustmentValue = tpAdjustmentValueValue;
-
 
                 // DCA Levels
                 SetDcaSettings(value);

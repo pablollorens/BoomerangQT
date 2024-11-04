@@ -10,29 +10,21 @@ namespace BoomerangQT
 {
     public partial class BoomerangQT : Strategy, ICurrentSymbol, ICurrentAccount
     {
-        // Strategy parameters that are used in Main.cs
-        //private Symbol symbol;
         public Symbol CurrentSymbol { get; set; }
-        //public Account account;
+
         public Account CurrentAccount { get; set; }
-        public string timeframe = "MIN1";
+        public string timeframe = "MIN5";
 
-        public DateTime startTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 6, 25, 0);
-        public DateTime endTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 6, 30, 0);
-        public DateTime detectionStartTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 6, 30, 0);
-        public DateTime detectionEndTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 15, 30, 0);
-        public DateTime closePositionsAtTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 16, 0, 0);
-
-        //public DateTime startTime = DateTime.Today.AddHours(6).AddMinutes(25);
-        //public DateTime endTime = DateTime.Today.AddHours(6).AddMinutes(30);
-        //public DateTime detectionStartTime = DateTime.Today.AddHours(6).AddMinutes(30);
-        //public DateTime detectionEndTime = DateTime.Today.AddHours(15).AddMinutes(30);
-        //public DateTime closePositionsAtTime = DateTime.Today.AddHours(16);
+        public DateTime startTime;
+        public DateTime endTime;
+        public DateTime detectionStartTime;
+        public DateTime detectionEndTime;
+        public DateTime closePositionsAtTime;
 
         public FirstEntryOption firstEntryOption = FirstEntryOption.MainEntry;
 
-        public int initialQuantity = 1;
-        public double stopLossPercentage = 0.35;
+        public int initialQuantity = 2;
+        public double stopLossPercentage = 0.90;
 
         public bool enableBreakEven = false;
         public int numberDCAToBE = 1;
@@ -44,13 +36,13 @@ namespace BoomerangQT
         public bool enableManualMode = false;
 
         // DCA Level Settings
-        public bool enableDcaLevel1 = false;
-        public double dcaPercentage1 = 0.15;
-        public int dcaQuantity1 = 1;
+        public bool enableDcaLevel1 = true;
+        public double dcaPercentage1 = 0.04;
+        public int dcaQuantity1 = 2;
 
-        public bool enableDcaLevel2 = false;
-        public double dcaPercentage2 = 0.35;
-        public int dcaQuantity2 = 1;
+        public bool enableDcaLevel2 = true;
+        public double dcaPercentage2 = 0.17;
+        public int dcaQuantity2 = 4;
 
         public bool enableDcaLevel3 = false;
         public double dcaPercentage3 = 0.35;
@@ -68,8 +60,7 @@ namespace BoomerangQT
         private DateTimeOffset detectionEnd;
         private DateTimeOffset closePositionsAt;
         private Position currentPosition;
-        //private TimeSpan selectedUtcOffset;
-        private TimeZoneInfo easternZone;
+        private TimeZoneInfo selectedTimeZone;
         private int numberDCA;
         private Status strategyStatus = Status.WaitingForRange;
         private string stopLossOrderId;
@@ -94,20 +85,35 @@ namespace BoomerangQT
         // DCA Level Parameters
         private List<DcaLevel> dcaLevels = new List<DcaLevel>();
 
-        public BoomerangQT()
+        public BoomerangQT() : base()
         {
             Name = "BoomerangQT";
             Description = "Range breakout strategy with multiple DCA levels and session end position closure";
+
+            selectedTimeZone = Core.Instance.TimeUtils.SelectedTimeZone.TimeZoneInfo;
+
+            // Inicializar startTime
+            // Here is ok to use local time, because is the one in Quantower.
+            startTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 6, 25, 0, DateTimeKind.Local);
+            endTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 6, 30, 0, DateTimeKind.Local);
+            detectionStartTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 6, 30, 0, DateTimeKind.Local);
+            detectionEndTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 15, 30, 0, DateTimeKind.Local);
+            closePositionsAtTime = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 16, 0, 0, DateTimeKind.Local);
         }
 
         protected override void OnRun()
         {
-            easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            // If you did any modification to the dates, they will be in your computer local time (not Quantower)
+            // So we need to transform them using the Quantower timezone
+            startTime = ConvertToLocalTime(startTime);
+            endTime = ConvertToLocalTime(endTime);
+            detectionStartTime = ConvertToLocalTime(detectionStartTime);
+            detectionEndTime = ConvertToLocalTime(detectionEndTime);
+            closePositionsAtTime = ConvertToLocalTime(closePositionsAtTime);
 
-            DateTime today = DateTime.Now.Date;
+            DateTime today = DateTime.Today.ToLocalTime();
 
-            // Convert DateTime settings to DateTimeOffset with Eastern Time
-            UpdateRangeTimes(DateTime.Today);
+            UpdateRangeTimes(today);
 
             Log($"Range Start (Eastern): {rangeStart}", StrategyLoggingLevel.Trading);
 
@@ -160,7 +166,6 @@ namespace BoomerangQT
                 Core.PositionAdded += OnPositionAdded;
                 Core.PositionRemoved += OnPositionRemoved;
                 Core.TradeAdded += this.Core_TradeAdded;
-                //Core.Instance.LocalOrders.Updated += OnOrderUpdated;
 
                 currentContractsUsed = 0;
             }
@@ -168,7 +173,24 @@ namespace BoomerangQT
             {
                 Log($"Exception in OnRun: {ex.Message}", StrategyLoggingLevel.Error);
                 Stop();
+                
             }
+        }
+
+        // Método auxiliar para manejar la conversión de DateTime
+        private DateTime ConvertToLocalTime(DateTime dateTime)
+        {
+            if (dateTime.Kind == DateTimeKind.Utc)
+            {
+                dateTime = TimeZoneInfo.ConvertTime(dateTime, selectedTimeZone);
+                dateTime = DateTime.SpecifyKind(dateTime, DateTimeKind.Local);
+            }
+            else
+            {
+                dateTime = dateTime.ToLocalTime();
+            }
+
+            return dateTime;
         }
 
         private void OnHistoryItemUpdated(object sender, HistoryEventArgs e)
@@ -180,8 +202,8 @@ namespace BoomerangQT
 
                 if (previousBar == null) previousBar = currentBar;
 
-                DateTimeOffset previousBarTime = TimeZoneInfo.ConvertTime(previousBar.TimeLeft, easternZone);
-                DateTimeOffset currentBarTime = TimeZoneInfo.ConvertTime(currentBar.TimeLeft, easternZone);
+                DateTimeOffset previousBarTime = TimeZoneInfo.ConvertTime(previousBar.TimeLeft, selectedTimeZone);
+                DateTimeOffset currentBarTime = TimeZoneInfo.ConvertTime(currentBar.TimeLeft, selectedTimeZone);
 
                 //DateTime previousBarTime = previousBar.TimeLeft;
                 //DateTime currentBarTime = currentBar.TimeLeft;
@@ -199,7 +221,7 @@ namespace BoomerangQT
                 }
                 else
                 {
-                    Log($"The current and previous bar have different hour and/or minute, which means previousBar is closed at {previousBarTime:HH:mm}", StrategyLoggingLevel.Trading);
+                    //Log($"The current and previous bar have different hour and/or minute, which means previousBar is closed at {previousBarTime:HH:mm}", StrategyLoggingLevel.Trading);
                     closedBar = true;
                 }
 
@@ -275,52 +297,48 @@ namespace BoomerangQT
                 this.totalFee += obj.Fee.Value;
         }
 
+        /**
+         * This function takes the date and retrieve
+         */
         private void UpdateRangeTimes(DateTime date)
         {
             try
             {
-                // Convert startTime to DateTimeOffset in Eastern Time
-                rangeStart = new DateTimeOffset(date.Year, date.Month, date.Day, startTime.Hour, startTime.Minute, 0, TimeSpan.Zero);
-                rangeStart = TimeZoneInfo.ConvertTime(rangeStart, easternZone);
+                date = date.ToLocalTime();
+                TimeSpan selectedUtcOffset = selectedTimeZone.GetUtcOffset(date);
 
-                // Convert endTime to DateTimeOffset in Eastern Time
-                rangeEnd = new DateTimeOffset(date.Year, date.Month, date.Day, endTime.Hour, endTime.Minute, 0, TimeSpan.Zero);
-                rangeEnd = TimeZoneInfo.ConvertTime(rangeEnd, easternZone);
+                rangeStart = new DateTimeOffset(date.Year, date.Month, date.Day, startTime.Hour, startTime.Minute, 0, selectedUtcOffset);
+                rangeEnd = new DateTimeOffset(date.Year, date.Month, date.Day, endTime.Hour, endTime.Minute, 0, selectedUtcOffset);
+                detectionStart = new DateTimeOffset(date.Year, date.Month, date.Day, detectionStartTime.Hour, detectionStartTime.Minute, 0, selectedUtcOffset);
+                detectionEnd = new DateTimeOffset(date.Year, date.Month, date.Day, detectionEndTime.Hour, detectionEndTime.Minute, 0, selectedUtcOffset);
+                closePositionsAt = new DateTimeOffset(date.Year, date.Month, date.Day, closePositionsAtTime.Hour, closePositionsAtTime.Minute, 0, selectedUtcOffset);
+                
 
-                // Convert detectionStartTime to DateTimeOffset in Eastern Time
-                detectionStart = new DateTimeOffset(date.Year, date.Month, date.Day, detectionStartTime.Hour, detectionStartTime.Minute, 0, TimeSpan.Zero);
-                detectionStart = TimeZoneInfo.ConvertTime(detectionStart, easternZone);
-
-                // Convert detectionEndTime to DateTimeOffset in Eastern Time
-                detectionEnd = new DateTimeOffset(date.Year, date.Month, date.Day, detectionEndTime.Hour, detectionEndTime.Minute, 0, TimeSpan.Zero);
-                detectionEnd = TimeZoneInfo.ConvertTime(detectionEnd, easternZone);
-
-                // Convert closePositionsAtTime to DateTimeOffset in Eastern Time
-                closePositionsAt = new DateTimeOffset(date.Year, date.Month, date.Day, closePositionsAtTime.Hour, closePositionsAtTime.Minute, 0, TimeSpan.Zero);
-                closePositionsAt = TimeZoneInfo.ConvertTime(closePositionsAt, easternZone);
-
-                if (detectionStart < rangeEnd)
-                {
-                    Log($"Entramos aqui 1");
-                    detectionStart = rangeEnd;
-                }
                 if (rangeEnd < rangeStart)
                 {
-                    Log($"Entramos aqui 2");
                     rangeEnd = rangeEnd.AddDays(1);
-                }
-
-                if (closePositionsAt <= detectionEnd)
-                {
-                    Log($"Entramos aqui 3");
+                    detectionStart = detectionStart.AddDays(1);
+                    detectionEnd = detectionEnd.AddDays(1);
                     closePositionsAt = closePositionsAt.AddDays(1);
                 }
 
-                Log($"StartTime: {rangeStart.DateTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-                Log($"endTime: {rangeEnd.DateTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-                Log($"detectionStartTime: {detectionStart.DateTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-                Log($"detectionEndTime: {detectionEnd.DateTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
-                Log($"ClosePositionsAt: {closePositionsAt.DateTime:yyyy-MM-dd HH:mm:ss}", StrategyLoggingLevel.Trading);
+                if (detectionStart < rangeEnd)
+                {
+                    detectionStart = detectionStart.AddDays(1);
+                    detectionEnd = detectionEnd.AddDays(1);
+                    closePositionsAt = closePositionsAt.AddDays(1);
+                }
+
+                if (detectionEnd < detectionStart)
+                {
+                    detectionEnd = detectionEnd.AddDays(1);
+                    closePositionsAt = closePositionsAt.AddDays(1);
+                }
+
+                if (closePositionsAt < detectionEnd)
+                {
+                    closePositionsAt = closePositionsAt.AddDays(1);
+                }
             }
             catch (Exception ex)
             {
@@ -333,15 +351,13 @@ namespace BoomerangQT
         {
             try
             {
-                DateTimeOffset currentTime = TimeZoneInfo.ConvertTime(bar.TimeLeft, easternZone);
+                //DateTime currentTime = TimeZoneInfo.ConvertTime(bar.TimeLeft, selectedTimeZone);
+                DateTime currentTime = bar.TimeLeft;
 
-                //DateTime currentTime = bar.TimeLeft;
-
-                Log($"UpdateRange - currentTime:{currentTime.DateTime:yyyy-MM-dd HH:mm}");
-                Log($"UpdateRange - rangeStart:{rangeStart.DateTime:yyyy-MM-dd HH:mm}");
-                Log($"UpdateRange - rangeEnd:{rangeEnd.DateTime:yyyy-MM-dd HH:mm}");
-
-                if (currentTime >= rangeStart && currentTime <= rangeEnd)
+                //Log($"UpdateRange - original Time:{bar.TimeLeft:yyyy-MM-dd HH:mm:ss}");
+                //Log($"UpdateRange - currentTime:{currentTime.DateTime:yyyy-MM-dd HH:mm:ss}");
+                
+                if (currentTime >= rangeStart && currentTime < rangeEnd)
                 {
                     rangeHigh = rangeHigh.HasValue ? Math.Max(rangeHigh.Value, bar.High) : bar.High;
                     rangeLow = rangeLow.HasValue ? Math.Min(rangeLow.Value, bar.Low) : bar.Low;
