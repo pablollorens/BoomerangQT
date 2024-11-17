@@ -24,7 +24,7 @@ namespace BoomerangQT
         public FirstEntryOption firstEntryOption = FirstEntryOption.MainEntry;
 
         public int initialQuantity = 2;
-        public double stopLossPercentage = 0.90;
+        public double stopLossPercentage = 0.4;
 
         public bool enableBreakEven = false;
         public int numberDCAToBE = 1;
@@ -33,19 +33,17 @@ namespace BoomerangQT
         public double takeProfitPercentage = 0.5;
         public double takeProfitPoints = 10;
 
-        public bool enableManualMode = false;
-
         // DCA Level Settings
         public bool enableDcaLevel1 = true;
-        public double dcaPercentage1 = 0.04;
+        public double dcaPercentage1 = 0.02;
         public int dcaQuantity1 = 2;
 
         public bool enableDcaLevel2 = true;
-        public double dcaPercentage2 = 0.17;
+        public double dcaPercentage2 = 0.06;
         public int dcaQuantity2 = 4;
 
         public bool enableDcaLevel3 = false;
-        public double dcaPercentage3 = 0.35;
+        public double dcaPercentage3 = 0.10;
         public int dcaQuantity3 = 1;
 
         public override string[] MonitoringConnectionsIds => CurrentSymbol != null ? new[] { CurrentSymbol.ConnectionId } : new string[0];
@@ -59,9 +57,9 @@ namespace BoomerangQT
         private DateTimeOffset detectionStart;
         private DateTimeOffset detectionEnd;
         private DateTimeOffset closePositionsAt;
-        private Position currentPosition;
+        private Position currentPosition = null;
         private TimeZoneInfo selectedTimeZone;
-        private int numberDCA;
+        private int numberDCA = 0;
         private Status strategyStatus = Status.WaitingForRange;
         private string stopLossOrderId;
         private string takeProfitOrderId;
@@ -115,9 +113,21 @@ namespace BoomerangQT
 
             UpdateRangeTimes(today);
 
-            Log($"Range Start (Eastern): {rangeStart}", StrategyLoggingLevel.Trading);
+            //Log($"Range Start (Eastern): {rangeStart}", StrategyLoggingLevel.Trading);
 
             this.totalNetPl = 0D;
+            strategyStatus = Status.WaitingForRange;
+            currentContractsUsed = 0;
+            numberDCA = 0;
+            currentPosition = null;
+            rangeHigh = null;
+            rangeLow = null;
+            currentPosition = null;
+            stopLossGlobalPrice = null;
+            openPrice = null;
+            strategySide = null;
+            stopLossOrderId = null;
+            takeProfitOrderId = null;
 
             try
             {
@@ -180,6 +190,8 @@ namespace BoomerangQT
         // Método auxiliar para manejar la conversión de DateTime
         private DateTime ConvertToLocalTime(DateTime dateTime)
         {
+            //Log($"ConvertToLocalTime - before:{dateTime:yyyy-MM-dd HH:mm}");
+            //Log($"SelectedTZ - {selectedTimeZone}");
             if (dateTime.Kind == DateTimeKind.Utc)
             {
                 dateTime = TimeZoneInfo.ConvertTime(dateTime, selectedTimeZone);
@@ -189,21 +201,39 @@ namespace BoomerangQT
             {
                 dateTime = dateTime.ToLocalTime();
             }
+            //Log($"ConvertToLocalTime - after:{dateTime:yyyy-MM-dd HH:mm}");
 
             return dateTime;
         }
 
         private void OnHistoryItemUpdated(object sender, HistoryEventArgs e)
         {
+            //Log($"We enter in HistoryItemUpdated");
+
             try
             {
+                if (strategyStatus == Status.ManagingTrade) {
+                    Log("We are MANAGING a TRADE!! and still entering here...!!!");
+                }
+
+
                 if (!(e.HistoryItem is HistoryItemBar currentBar)) return;
                 //if (historicalData.Count <= 1) return;
 
-                if (previousBar == null) previousBar = currentBar;
+                //Log($"DateKind: {currentBar.TimeLeft.Kind}");
 
+                //Log($"OnHistoryItemUpdated - currentTime:{currentBar.TimeLeft:yyyy-MM-dd HH:mm}");
+
+                if (previousBar == null) previousBar = currentBar;
+                
                 DateTimeOffset previousBarTime = TimeZoneInfo.ConvertTime(previousBar.TimeLeft, selectedTimeZone);
                 DateTimeOffset currentBarTime = TimeZoneInfo.ConvertTime(currentBar.TimeLeft, selectedTimeZone);
+
+                //Log($"OnHistoryItemUpdated - previousBarTime:{previousBarTime.DateTime:yyyy-MM-dd HH:mm}");
+                //Log($"OnHistoryItemUpdated - currentBarTime:{currentBarTime.DateTime:yyyy-MM-dd HH:mm}");
+
+                //Log($"OnHistoryItemUpdated - previousBarTime kind:{previousBarTime.DateTime.Kind}");
+                //Log($"OnHistoryItemUpdated - currentBarTime kind:{currentBarTime.DateTime.Kind}");
 
                 //DateTime previousBarTime = previousBar.TimeLeft;
                 //DateTime currentBarTime = currentBar.TimeLeft;
@@ -228,9 +258,10 @@ namespace BoomerangQT
                 UpdateRangeTimes(currentBarTime.Date); // Updates range to the current day
 
                 //Log($"Date: {currentBarTime:yyyy-MM-dd HH:mm}", StrategyLoggingLevel.Trading);
-
+                
                 if (strategyStatus == Status.WaitingForRange)
                 {
+                    
                     //Log($"There are {Core.Positions.Count()} position in WaitingForRange", StrategyLoggingLevel.Trading);
 
                     // We need to check if for any reason there is an open position on the asset we're trading and close them
@@ -239,8 +270,9 @@ namespace BoomerangQT
                         foreach (Position position in Core.Positions)
                         {
                             ClosePositionRequestParameters request = new ClosePositionRequestParameters();
-                            if (position.Symbol.Name.StartsWith(CurrentSymbol.Name))
+                            if (position.Symbol.Name.StartsWith(CurrentSymbol.Name) && position.Account == CurrentAccount)
                             {
+                                Log($"We try to close this position: {position}");
                                 Core.Instance.ClosePosition(position);
                             }
                         }
@@ -249,7 +281,7 @@ namespace BoomerangQT
                     //Log($"There are {Core.Positions.Count()} positions open now", StrategyLoggingLevel.Trading);
 
                     // Update range on every tick
-                    UpdateRange(currentBar, closedBar);
+                    UpdateRange(currentBar);
 
                     if (currentPosition != null)
                     {
@@ -258,21 +290,28 @@ namespace BoomerangQT
                     
                 }
                 
-                if (strategyStatus == Status.BreakoutDetection && !enableManualMode)
+                if (strategyStatus == Status.BreakoutDetection)
                 {
-                    // Detect breakout only on closed bars and if manual mode is disabled
+                    
                     if (closedBar == true) {
                         DetectBreakout(previousBar);
                     }
                 }
                 else if (strategyStatus == Status.WaitingToEnter)
                 {
-                    if (currentPosition != null) strategyStatus = Status.ManagingTrade;
+                    
+                    // If one of the DCAs gets hit
+                    if (currentPosition != null)
+                    {
+                        Log($"We set Status to ManagingTrade");
+                        strategyStatus = Status.ManagingTrade;
+                    }
                 }
                 else if (strategyStatus == Status.ManagingTrade)
                 {
                     // Monitor trade on every tick
-                    // If manual mode is enabled and we enter a trade the status will become ManagingTrade, so basically we're always checking until a trade is in play
+                    // We're always checking until a trade is in play
+                    //Log("We enter here 2");
                     MonitorTrade(currentBar);
                 }
 
@@ -347,16 +386,18 @@ namespace BoomerangQT
             }
         }
 
-        private void UpdateRange(HistoryItemBar bar, Boolean closedBar)
+        private void UpdateRange(HistoryItemBar bar)
         {
             try
             {
                 //DateTime currentTime = TimeZoneInfo.ConvertTime(bar.TimeLeft, selectedTimeZone);
                 DateTime currentTime = bar.TimeLeft;
 
+                
+
                 //Log($"UpdateRange - original Time:{bar.TimeLeft:yyyy-MM-dd HH:mm:ss}");
                 //Log($"UpdateRange - currentTime:{currentTime.DateTime:yyyy-MM-dd HH:mm:ss}");
-                
+
                 if (currentTime >= rangeStart && currentTime < rangeEnd)
                 {
                     rangeHigh = rangeHigh.HasValue ? Math.Max(rangeHigh.Value, bar.High) : bar.High;
@@ -366,7 +407,7 @@ namespace BoomerangQT
 
                     numberDCA = 0;
                 }
-                if (closedBar && currentTime > rangeEnd)
+                if (currentTime >= rangeEnd)
                 {
                     if (rangeHigh.HasValue && rangeLow.HasValue)
                     {
@@ -433,7 +474,7 @@ namespace BoomerangQT
         {
             DateTime currentTime = bar.TimeLeft;
 
-            //Log($"MonitorTrade - currentTime:{currentTime.AddHours(timeZoneOffset):yyyy-MM-dd HH:mm}");
+            //Log($"MonitorTrade - currentTime:{currentTime:yyyy-MM-dd HH:mm}");
 
             try
             {
@@ -455,6 +496,7 @@ namespace BoomerangQT
                 }
 
                 // Check for DCA executions
+                Log("Checking DCA executions", StrategyLoggingLevel.Trading);
                 CheckDcaExecutions();
             }
             catch (Exception ex)
@@ -479,6 +521,8 @@ namespace BoomerangQT
                 stopLossGlobalPrice = null;
                 openPrice = null;
                 strategySide = null;
+                stopLossOrderId = null;
+                takeProfitOrderId = null;
 
                 // Cancel all DCA orders
                 CancelDcaOrders();

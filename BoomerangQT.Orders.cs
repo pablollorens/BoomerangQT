@@ -26,19 +26,19 @@ namespace BoomerangQT
                 {
                     case FirstEntryOption.MainEntry:
                         PlaceTrade(side.Value); // This will be protected
-                        strategyStatus = Status.ManagingTrade;
+                        //strategyStatus = Status.ManagingTrade;
                         break;
                     case FirstEntryOption.DcaLevel1:
-                        PlaceDCALimitOrder(1, side.Value); // This will be a simple limit order, later will be protected by the event
+                        PlaceDCALimitOrder(1, side.Value); // This will be a simple limit order, later will be protected by the event that checks when number of contracts used variate
                         strategyStatus = Status.WaitingToEnter;
                         break;
                     case FirstEntryOption.DcaLevel2:
-                        PlaceDCALimitOrder(2, side.Value); // This will be a simple limit order, later will be protected by the event
+                        PlaceDCALimitOrder(2, side.Value); // This will be a simple limit order, later will be protected by the event that checks when number of contracts used variate
                         numberDCA = 1; // This is like we took one DCA already, the 2nd one will come with the touch of the limit order we just placed
                         strategyStatus = Status.WaitingToEnter;
                         break;
                     case FirstEntryOption.DcaLevel3:
-                        PlaceDCALimitOrder(3, side.Value); // This will be a simple limit order, later will be protected by the event
+                        PlaceDCALimitOrder(3, side.Value); // This will be a simple limit order, later will be protected by the event that checks when number of contracts used variate
                         numberDCA = 2; // This is like we took two DCAs already, the 3rd one will come with the touch of the limit order we just placed
                         strategyStatus = Status.WaitingToEnter;
                         break;
@@ -128,19 +128,27 @@ namespace BoomerangQT
         {
             try
             {
-                if (strategyStatus == Status.WaitingForRange && !enableManualMode) return;
+                //Log($"OnPositionAdded");
+                //Log($"status: {strategyStatus} - waiting for range or managing trade will make us exit");
+
+                if (strategyStatus == Status.WaitingForRange || strategyStatus == Status.ManagingTrade) return;
+
+                //Log($"currentPosition: {currentPosition} - only null will make us continue");
 
                 // if a position is being opened: by range breakout when main entry is active, manually (if enabled) or by an execution of a DCA order
                 // This will only happen once per range
                 if (currentPosition != null) return;
 
+                //Log($"position.Symbol: {position.Symbol} and currentSymbol: {CurrentSymbol} should be the same, and the accounts also {position.Account}/{CurrentAccount}");
+
                 if (position.Symbol == null || CurrentSymbol == null || !position.Symbol.Name.StartsWith(CurrentSymbol.Name) || position.Account != CurrentAccount) return;
 
                 currentPosition = position;
+                //Log($"CurrentPosition is set");
 
-                Log($"New position added. Side: {position.Side}, Quantity: {position.Quantity}, Open Price: {position.OpenPrice}", StrategyLoggingLevel.Trading);
+                //Log($"New position added. Side: {position.Side}, Quantity: {position.Quantity}, Open Price: {position.OpenPrice}", StrategyLoggingLevel.Trading);
 
-                if (strategyStatus == Status.ManagingTrade || strategyStatus == Status.WaitingToEnter || enableManualMode)
+                if (strategyStatus == Status.BreakoutDetection || strategyStatus == Status.WaitingToEnter)
                 {
                     strategyStatus = Status.ManagingTrade;
 
@@ -148,6 +156,8 @@ namespace BoomerangQT
                     
                     // Place DCA orders
                     PlaceDcaOrders(); // The ones not placed yet
+
+                    Log($"strategyStatus: {strategyStatus}");
                 }
             }
             catch (Exception ex)
@@ -169,7 +179,11 @@ namespace BoomerangQT
                 // Place initial TP
                 PlaceOrUpdateTakeProfit();
 
+                Log("Position PROTECTED", StrategyLoggingLevel.Trading);
+
                 currentContractsUsed = currentPosition.Quantity;
+
+                Log($"Current Contracts used: {currentContractsUsed}", StrategyLoggingLevel.Trading);
             }
             catch (Exception ex)
             {
@@ -185,6 +199,8 @@ namespace BoomerangQT
                 if (currentPosition == null) return;
 
                 var stopLossPrice = CalculateStopLossPrice();
+
+                Log($"Stop Loss price: {stopLossPrice}", StrategyLoggingLevel.Trading);
 
                 if (stopLossPrice == null)
                 {
@@ -233,6 +249,8 @@ namespace BoomerangQT
 
                 var takeProfitPrice = CalculateTakeProfitPrice();
 
+                Log($"takeProfitPrice ---: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+
                 var request = new PlaceOrderRequestParameters
                 {
                     Symbol = CurrentSymbol,
@@ -248,6 +266,7 @@ namespace BoomerangQT
                     }
                 };
 
+                Log($"Cancelling previous takeProfitOrderId {takeProfitOrderId}", StrategyLoggingLevel.Trading);
                 CancelExistingOrder(takeProfitOrderId);
 
                 var result = Core.Instance.PlaceOrder(request);
@@ -296,28 +315,41 @@ namespace BoomerangQT
             try
             {
                 double takeProfitPrice = currentPosition.OpenPrice;
+                Log($"initial takeprofit price: {takeProfitPrice}");
 
+                Log($"enableBreakEven: {enableBreakEven}");
+                Log($"breakevenOption: {breakevenOption}");
+                Log($"numberDCA: {numberDCA}");
+              
                 // Adjust for breakeven if conditions are met, basically we enter BE functionality if DCA is equal to the configured one, or if the configured option in "every dca level"
-                if ((enableBreakEven && breakevenOption == BreakevenOption.EveryDcaLevel) || (enableBreakEven && (int) breakevenOption == numberDCA))
+                if ((enableBreakEven && breakevenOption == BreakevenOption.EveryDcaLevel && numberDCA > 0) || (enableBreakEven && (int) breakevenOption == numberDCA))
                 {
                     double breakevenPrice = currentPosition.OpenPrice;
 
                     // Adjust the TP according to the TP adjustment settings
                     double adjustment = 0.0;
 
+                    Log($"tpAdjustmentType: {tpAdjustmentType}");
+
+                    Log($"(TpAdjustmentType)tpAdjustmentType: {(TpAdjustmentType)tpAdjustmentType}");
+
                     switch ((TpAdjustmentType)tpAdjustmentType)
                     {
                         case TpAdjustmentType.FixedPoints:
+                            Log($"we enter in BE 1 - fixedpoints");
                             adjustment = tpAdjustmentValue;
                             break;
 
                         case TpAdjustmentType.FixedPercentage:
+                            Log($"we enter in BE 2 - FixedPercentage");
                             adjustment = breakevenPrice * (tpAdjustmentValue / 100.0);
                             break;
 
                         case TpAdjustmentType.RangeSize:
+                            Log($"we enter in BE 3 - RangeSize");
                             if (rangeHigh.HasValue && rangeLow.HasValue)
                             {
+                                Log($"we enter in BE 4 - RangeSize2");
                                 adjustment = rangeHigh.Value - rangeLow.Value;
                             }
                             else

@@ -123,13 +123,6 @@ namespace BoomerangQT
                     SortIndex = 70
                 });
 
-                // Enable Manual Mode
-                settings.Add(new SettingItemBoolean("enableManualMode", enableManualMode)
-                {
-                    Text = "Enable manual mode",
-                    SortIndex = 72
-                });
-
                 // First Entry Option
                 var firstEntryOptions = new List<SelectItem>
                 {
@@ -324,9 +317,6 @@ namespace BoomerangQT
 
                 if (value.TryGetValue("takeProfitPoints", out double takeProfitPointsValue))
                     takeProfitPoints = takeProfitPointsValue;
-
-                if (value.TryGetValue("enableManualMode", out bool enableManualModeValue))
-                    enableManualMode = enableManualModeValue;
 
                 if (value.TryGetValue("breakevenOption", out BreakevenOption breakevenOptionValue))
                     breakevenOption = breakevenOptionValue;

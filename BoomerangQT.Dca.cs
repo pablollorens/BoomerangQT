@@ -24,6 +24,7 @@ namespace BoomerangQT
                 {
                     AddDcaLevel(1, enableDcaLevel1, dcaPercentage1, dcaQuantity1);
                     AddDcaLevel(2, enableDcaLevel2, dcaPercentage2, dcaQuantity2);
+                    AddDcaLevel(3, enableDcaLevel3, dcaPercentage3, dcaQuantity3);
                 }
                 else if (firstEntryOption == FirstEntryOption.DcaLevel2)
                 {
@@ -64,7 +65,7 @@ namespace BoomerangQT
                     Quantity = quantity,
                     Executed = false
                 });
-                Log($"DCA Level {levelNumber} added: Trigger at {triggerPercentage * 100}% with quantity {quantity}", StrategyLoggingLevel.Trading);
+                Log($"DCA Level {levelNumber} added: Trigger at {triggerPercentage}% with quantity {quantity}", StrategyLoggingLevel.Trading);
             }
         }
 
@@ -178,13 +179,19 @@ namespace BoomerangQT
 
         private void CheckDcaExecutions()
         {
-            //Log($"Entering CheckDcaExecutions");
+            Log($"Entering CheckDcaExecutions");
             try
             {
+                Log($"currentContractsUsed: {currentContractsUsed}");
+                Log($"currentPosition.Quantity: {currentPosition.Quantity}");
+
                 if (currentContractsUsed != currentPosition.Quantity)
                 {
+                    Log($"numberDCA: {numberDCA}");
                     numberDCA++;
+                    Log($"numberDCA (after): {numberDCA}");
                     ProtectPosition();
+
                     Log($"currentContractsUsed Updated: {currentContractsUsed}", StrategyLoggingLevel.Trading);
                 }
             }
