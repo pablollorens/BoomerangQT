@@ -41,11 +41,16 @@ namespace BoomerangQT
             result.Add(new StrategyMetric() { Name = "Current PnL", FormattedValue = currentPosition?.GrossPnL.ToString() ?? "n/a" });
             result.Add(new StrategyMetric() { Name = "Range Low", FormattedValue = GetRangeLow().ToString() ?? "n/a" });
             result.Add(new StrategyMetric() { Name = "Range High", FormattedValue = GetRangeHigh().ToString() ?? "n/a" });
+            result.Add(new StrategyMetric()
+            {
+                Name = "Range Size",
+                FormattedValue = GetRangeSize() == 0.0 ? "N/A" : GetRangeSize().ToString()
+            });
             result.Add(new StrategyMetric() { Name = "DCA sizes", FormattedValue = GetDCASizes() });
             result.Add(new StrategyMetric() { Name = "DCA %", FormattedValue = GetDCAPercentages() });
             result.Add(new StrategyMetric() { Name = "Strategy Side", FormattedValue = this.strategySide.ToString() });
             result.Add(new StrategyMetric() { Name = "Expected Contracts", FormattedValue = this.expectedContracts.ToString() });
-
+            
             return result;
         }
 
@@ -60,6 +65,15 @@ namespace BoomerangQT
             } else {
                 result.Add(new StrategyMetric() { Name = "Breakeven", FormattedValue = "Disabled" });
             }
+        }
+        public double GetRangeSize()
+        {
+            if (rangeHigh.HasValue && rangeLow.HasValue)
+            {
+                return rangeHigh.Value - rangeLow.Value;
+            }
+
+            return 0.0;
         }
 
         private string GetDCAPercentages()

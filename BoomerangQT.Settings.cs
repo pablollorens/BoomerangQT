@@ -123,6 +123,15 @@ namespace BoomerangQT
                     SortIndex = 70
                 });
 
+                settings.Add(new SettingItemInteger("minimumRangeSize", minimumRangeSize)
+                {
+                    Text = "Minimum Range Size",
+                    SortIndex = 75,
+                    Minimum = 1,
+                    Maximum = 500,
+                    Increment = 1,
+                });
+
                 // First Entry Option
                 var firstEntryOptions = new List<SelectItem>
                 {
@@ -296,6 +305,9 @@ namespace BoomerangQT
 
                 if (value.TryGetValue("closePositionsAtTime", out DateTime closePositionsAtTimeValue))
                     closePositionsAtTime = closePositionsAtTimeValue;
+
+                if (value.TryGetValue("minimumRangeSize", out int minimumRangeSizeValue))
+                    minimumRangeSize = minimumRangeSizeValue;
 
                 if (value.TryGetValue("firstEntryOption", out FirstEntryOption firstEntryOptionValue))
                     firstEntryOption = firstEntryOptionValue;

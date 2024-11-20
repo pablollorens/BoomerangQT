@@ -178,9 +178,9 @@ namespace BoomerangQT
         // I believe so far that the issue is in entering order not touching SL or TP which decrease the number of contracts
         private void OnPositionUpdated(Position position)
         {
-            Log($"OnPositionUpdated", StrategyLoggingLevel.Trading);
+            //Log($"OnPositionUpdated", StrategyLoggingLevel.Trading);
 
-            Log($"Position updated: {position}");
+            //Log($"Position updated: {position}");
 
             // We need to identify moments to skip this checking, because we only want to protect the complete position
             if (currentPosition.Quantity < expectedContracts) return; // Contracts are probably being added to the position, not complete yet, this will also accept adding contracts via DCA orders
@@ -417,20 +417,17 @@ namespace BoomerangQT
                     switch ((TpAdjustmentType)tpAdjustmentType)
                     {
                         case TpAdjustmentType.FixedPoints:
-                            Log($"we enter in BE 1 - fixedpoints");
                             adjustment = tpAdjustmentValue;
                             break;
 
                         case TpAdjustmentType.FixedPercentage:
-                            Log($"we enter in BE 2 - FixedPercentage");
+                            
                             adjustment = breakevenPrice * (tpAdjustmentValue / 100.0);
                             break;
 
                         case TpAdjustmentType.RangeSize:
-                            Log($"we enter in BE 3 - RangeSize");
                             if (rangeHigh.HasValue && rangeLow.HasValue)
                             {
-                                Log($"we enter in BE 4 - RangeSize2");
                                 adjustment = rangeHigh.Value - rangeLow.Value;
                             }
                             else
@@ -449,7 +446,6 @@ namespace BoomerangQT
                         breakevenPrice = breakevenPrice - (double) adjustment;
                     }
 
-                    Log($"Current Price before BE calculation: {currentPosition.OpenPrice}", StrategyLoggingLevel.Trading);
                     Log($"Type of Breakeven: {(TpAdjustmentType)tpAdjustmentType}", StrategyLoggingLevel.Trading);
                     Log($"Breakeven value: {adjustment}", StrategyLoggingLevel.Trading);
                     Log($"New calculated Breakeven Price: {breakevenPrice}", StrategyLoggingLevel.Trading);
@@ -488,6 +484,7 @@ namespace BoomerangQT
                         Log($"Take Profit set using fixed points: {takeProfitPrice}", StrategyLoggingLevel.Trading);
                         break;
                 }
+
                 return takeProfitPrice;
 
             }

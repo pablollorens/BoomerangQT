@@ -46,6 +46,8 @@ namespace BoomerangQT
         public double dcaPercentage3 = 0.10;
         public int dcaQuantity3 = 1;
 
+        private int minimumRangeSize = 30;
+
         public override string[] MonitoringConnectionsIds => CurrentSymbol != null ? new[] { CurrentSymbol.ConnectionId } : new string[0];
 
         // Private variables
@@ -402,6 +404,20 @@ namespace BoomerangQT
                 {
                     if (rangeHigh.HasValue && rangeLow.HasValue)
                     {
+                        Log($"Range for day {currentTime:yyyy-MM-dd} detection ended. Final Range - High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
+
+                        double rangeSize = rangeHigh.Value - rangeLow.Value;
+                        if (rangeSize < minimumRangeSize)
+                        {
+                            Log($"Range size {rangeSize} is less than the minimum required {minimumRangeSize}. Resetting strategy.", StrategyLoggingLevel.Trading);
+                            ResetStrategy();
+                            return;
+                        }
+                        else
+                        {
+                            strategyStatus = Status.BreakoutDetection;
+                        }
+
                         Log($"Range for day {currentTime:yyyy-MM-dd} detection ended. Final Range - High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
 
                         strategyStatus = Status.BreakoutDetection;
