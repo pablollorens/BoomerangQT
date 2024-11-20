@@ -71,9 +71,9 @@ namespace BoomerangQT
 
         private void PlaceDcaOrders()
         {
+            Log("PlaceDCAOrders", StrategyLoggingLevel.Trading);
             try
             {
-                //Log($"dcaLevels: {dcaLevels}");
                 foreach (var dcaLevel in dcaLevels)
                 {
                     if (dcaLevel.IsFirstEntry)
@@ -88,11 +88,7 @@ namespace BoomerangQT
                         Side = currentPosition.Side,
                         OrderTypeId = "Limit",
                         Quantity = dcaLevel.Quantity,
-                        Price = triggerPrice,
-                        AdditionalParameters = new List<SettingItem>
-                        {
-                            new SettingItemBoolean(OrderType.REDUCE_ONLY, false)
-                        }
+                        Price = triggerPrice
                     };
 
                     var result = Core.Instance.PlaceOrder(request);
@@ -173,31 +169,6 @@ namespace BoomerangQT
             catch (Exception ex)
             {
                 Log($"Exception in CancelDcaOrders: {ex.Message}", StrategyLoggingLevel.Error);
-                Stop();
-            }
-        }
-
-        private void CheckDcaExecutions()
-        {
-            Log($"Entering CheckDcaExecutions");
-            try
-            {
-                Log($"currentContractsUsed: {currentContractsUsed}");
-                Log($"currentPosition.Quantity: {currentPosition.Quantity}");
-
-                if (currentContractsUsed != currentPosition.Quantity)
-                {
-                    Log($"numberDCA: {numberDCA}");
-                    numberDCA++;
-                    Log($"numberDCA (after): {numberDCA}");
-                    ProtectPosition();
-
-                    Log($"currentContractsUsed Updated: {currentContractsUsed}", StrategyLoggingLevel.Trading);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log($"Exception in CheckDcaExecutions: {ex.Message}", StrategyLoggingLevel.Error);
                 Stop();
             }
         }

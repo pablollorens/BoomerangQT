@@ -30,16 +30,15 @@ namespace BoomerangQT
                         break;
                     case FirstEntryOption.DcaLevel1:
                         PlaceDCALimitOrder(1, side.Value); // This will be a simple limit order, later will be protected by the event that checks when number of contracts used variate
-                        strategyStatus = Status.WaitingToEnter;
                         break;
                     case FirstEntryOption.DcaLevel2:
                         PlaceDCALimitOrder(2, side.Value); // This will be a simple limit order, later will be protected by the event that checks when number of contracts used variate
-                        numberDCA = 1; // This is like we took one DCA already, the 2nd one will come with the touch of the limit order we just placed
+                        executedDCALevel = 1; // This is like we took one DCA already, the 2nd one will come with the touch of the limit order we just placed
                         strategyStatus = Status.WaitingToEnter;
                         break;
                     case FirstEntryOption.DcaLevel3:
                         PlaceDCALimitOrder(3, side.Value); // This will be a simple limit order, later will be protected by the event that checks when number of contracts used variate
-                        numberDCA = 2; // This is like we took two DCAs already, the 3rd one will come with the touch of the limit order we just placed
+                        executedDCALevel = 2; // This is like we took two DCAs already, the 3rd one will come with the touch of the limit order we just placed
                         strategyStatus = Status.WaitingToEnter;
                         break;
                 }
@@ -69,6 +68,8 @@ namespace BoomerangQT
                     Quantity = quantityToUse,
                 });
 
+                expectedContracts = quantityToUse;
+
                 if (result.Status == TradingOperationResultStatus.Failure)
                     Log($"Failed to place order: {result.Message}", StrategyLoggingLevel.Error);
                 else
@@ -83,14 +84,15 @@ namespace BoomerangQT
 
         private void PlaceDCALimitOrder(int levelNumber, Side side)
         {
+            Log($"PlaceDCALimitOrder");
             try
             {
                 var dcaLevel = dcaLevels.FirstOrDefault(d => d.LevelNumber == levelNumber);
 
-                foreach (var level in dcaLevels)
-                {
-                    Log($"DCALevel: {level}", StrategyLoggingLevel.Trading);
-                }
+                //foreach (var level in dcaLevels)
+                //{
+                //    Log($"DCALevel: {level}", StrategyLoggingLevel.Trading);
+                //}
 
                 if (dcaLevel == null)
                 {
@@ -113,9 +115,16 @@ namespace BoomerangQT
                 });
 
                 if (result.Status == TradingOperationResultStatus.Failure)
+                {
                     Log($"Failed to place DCA Level {levelNumber} entry: {result.Message}", StrategyLoggingLevel.Error);
+                    Stop();
+                }
                 else
+                {
                     Log($"DCA Level {levelNumber} entry placed successfully.", StrategyLoggingLevel.Trading);
+                    expectedContracts = dcaLevel.Quantity;
+                    strategyStatus = Status.WaitingToEnter;
+                }
             }
             catch (Exception ex)
             {
@@ -128,14 +137,20 @@ namespace BoomerangQT
         {
             try
             {
-                //Log($"OnPositionAdded");
-                //Log($"status: {strategyStatus} - waiting for range or managing trade will make us exit");
+                Log($"OnPositionAdded", StrategyLoggingLevel.Trading);
 
-                if (strategyStatus == Status.WaitingForRange || strategyStatus == Status.ManagingTrade) return;
+                Log($"status: {strategyStatus} - WaitingForRange or ManagingTrade will make us exit this function");
+
+                if (strategyStatus == Status.WaitingForRange || strategyStatus == Status.ManagingTrade)
+                {
+                    Log($"Exiting function OnPositionAdded");
+                    Log($"Position: {position}");
+                    return;
+                }
 
                 //Log($"currentPosition: {currentPosition} - only null will make us continue");
 
-                // if a position is being opened: by range breakout when main entry is active, manually (if enabled) or by an execution of a DCA order
+                // if a position is being opened: by range breakout when main entry is active or by an execution of a DCA order
                 // This will only happen once per range
                 if (currentPosition != null) return;
 
@@ -144,21 +159,13 @@ namespace BoomerangQT
                 if (position.Symbol == null || CurrentSymbol == null || !position.Symbol.Name.StartsWith(CurrentSymbol.Name) || position.Account != CurrentAccount) return;
 
                 currentPosition = position;
+
+                position.Updated += OnPositionUpdated;
                 //Log($"CurrentPosition is set");
 
                 //Log($"New position added. Side: {position.Side}, Quantity: {position.Quantity}, Open Price: {position.OpenPrice}", StrategyLoggingLevel.Trading);
 
-                if (strategyStatus == Status.BreakoutDetection || strategyStatus == Status.WaitingToEnter)
-                {
-                    strategyStatus = Status.ManagingTrade;
-
-                    ProtectPosition(); // This needs to happen only the first time the position is opened
-                    
-                    // Place DCA orders
-                    PlaceDcaOrders(); // The ones not placed yet
-
-                    Log($"strategyStatus: {strategyStatus}");
-                }
+                
             }
             catch (Exception ex)
             {
@@ -167,11 +174,89 @@ namespace BoomerangQT
             }
         }
 
+        // This function basically serves the purpose when going up with amount of contracts
+        // I believe so far that the issue is in entering order not touching SL or TP which decrease the number of contracts
+        private void OnPositionUpdated(Position position)
+        {
+            Log($"OnPositionUpdated", StrategyLoggingLevel.Trading);
+
+            Log($"Position updated: {position}");
+
+            // We need to identify moments to skip this checking, because we only want to protect the complete position
+            if (currentPosition.Quantity < expectedContracts) return; // Contracts are probably being added to the position, not complete yet, this will also accept adding contracts via DCA orders
+
+            // If expected contracts are not smaller and probably the same as the current positions contracts, we understand that the position is complete and we can continue
+            
+
+            if (strategyStatus == Status.BreakoutDetection || strategyStatus == Status.WaitingToEnter) // This will make sure that position only gets protected and dca placed once
+            {
+                ProtectPosition(); // Whatever happens if position is complete we should protect it
+                PlaceDcaOrders(); // The ones not placed yet, this needs to happen only the first time the position is opened and completed
+
+                currentContractsUsed = currentPosition.Quantity;
+
+                if (strategyStatus == Status.WaitingToEnter)
+                {
+                    executedDCALevel = (int) firstEntryOption;
+                }
+
+                // We should increment quantityToManage with next DCA level to potentially get hit
+                var nextDCALevel = executedDCALevel + 1;
+                if (nextDCALevel < 3)
+                {
+                    foreach (var dcaLevel in dcaLevels)
+                    {
+                        Log($"debugging stuff: { dcaLevel }");
+                    }
+                    
+                    var nextLevel = dcaLevels.FirstOrDefault(d => d.LevelNumber == nextDCALevel);
+                    Log($"nextLevel: {nextLevel}");
+                    Log($"nextLevel.Quantity: {nextLevel.Quantity}");
+
+                    expectedContracts += nextLevel.Quantity;
+                    
+                    Log($"Number of expected contrats updated to: {expectedContracts}");
+                }
+
+                strategyStatus = Status.ManagingTrade;
+                Log($"StrategyStatus is moved to: {strategyStatus}");
+            }
+
+            if (strategyStatus == Status.ManagingTrade)
+            {
+                if (currentPosition.Quantity > currentContractsUsed)
+                {
+                    // We just started to hit an iceberg (DCA level) don't do anything yet
+                }
+
+                if (currentPosition.Quantity == expectedContracts)
+                {
+                    executedDCALevel++;
+                    Log($"We just hit the ICEBERG, DCA number: {executedDCALevel}");
+                    ProtectPosition(); // Whatever happens if position is complete we should protect it
+
+                    currentContractsUsed = currentPosition.Quantity;
+
+                    // We should increment quantityToManage with next DCA level to potentially get hit
+                    var nextDCALevel = executedDCALevel + 1;
+                    if (nextDCALevel < 3)
+                    {
+                        var nextLevel = dcaLevels.FirstOrDefault(d => d.LevelNumber == nextDCALevel);
+                        expectedContracts += nextLevel.Quantity;
+                        Log($"Number of expected contrats updated to: {expectedContracts}");
+                    } else
+                    {
+                        expectedContracts = 0; // We don't expect more contracts anymore
+                    }
+                }
+            }
+        }
+
         private void ProtectPosition()
         {
             try
             {
-                Log("Protecting position with SL, TP, and DCA.", StrategyLoggingLevel.Trading);
+                Log("ProtectPosition", StrategyLoggingLevel.Trading);
                 
                 // Place SL with total potential position size
                 PlaceOrUpdateStopLoss();
@@ -180,10 +265,6 @@ namespace BoomerangQT
                 PlaceOrUpdateTakeProfit();
 
                 Log("Position PROTECTED", StrategyLoggingLevel.Trading);
-
-                currentContractsUsed = currentPosition.Quantity;
-
-                Log($"Current Contracts used: {currentContractsUsed}", StrategyLoggingLevel.Trading);
             }
             catch (Exception ex)
             {
@@ -315,14 +396,14 @@ namespace BoomerangQT
             try
             {
                 double takeProfitPrice = currentPosition.OpenPrice;
-                Log($"initial takeprofit price: {takeProfitPrice}");
+                //Log($"initial takeprofit price: {takeProfitPrice}");
 
-                Log($"enableBreakEven: {enableBreakEven}");
-                Log($"breakevenOption: {breakevenOption}");
-                Log($"numberDCA: {numberDCA}");
+                //Log($"enableBreakEven: {enableBreakEven}");
+                //Log($"breakevenOption: {breakevenOption}");
+                //Log($"numberDCA: {numberDCA}");
               
                 // Adjust for breakeven if conditions are met, basically we enter BE functionality if DCA is equal to the configured one, or if the configured option in "every dca level"
-                if ((enableBreakEven && breakevenOption == BreakevenOption.EveryDcaLevel && numberDCA > 0) || (enableBreakEven && (int) breakevenOption == numberDCA))
+                if ((enableBreakEven && breakevenOption == BreakevenOption.EveryDcaLevel) || (enableBreakEven && (int) breakevenOption == executedDCALevel))
                 {
                     double breakevenPrice = currentPosition.OpenPrice;
 
@@ -521,6 +602,7 @@ namespace BoomerangQT
                 CancelAssociatedOrders();
 
                 currentPosition = null;
+                position.Updated -= OnPositionUpdated;
 
                 ResetStrategy();
             }

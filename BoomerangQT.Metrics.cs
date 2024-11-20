@@ -37,13 +37,14 @@ namespace BoomerangQT
             result.Add(new StrategyMetric() { Name = "Timeframe", FormattedValue = timeframe });
             result.Add(new StrategyMetric() { Name = "Asset", FormattedValue = CurrentSymbol.Name });
             result.Add(new StrategyMetric() { Name = "Contracts used", FormattedValue = GetCurrentContractsUsed().ToString() });
-            result.Add(new StrategyMetric() { Name = "In DCA #", FormattedValue = GetNumberDCA().ToString() });
+            result.Add(new StrategyMetric() { Name = "Executed DCA Level", FormattedValue = GetExecutedDCALevel().ToString() });
             result.Add(new StrategyMetric() { Name = "Current PnL", FormattedValue = currentPosition?.GrossPnL.ToString() ?? "n/a" });
             result.Add(new StrategyMetric() { Name = "Range Low", FormattedValue = GetRangeLow().ToString() ?? "n/a" });
             result.Add(new StrategyMetric() { Name = "Range High", FormattedValue = GetRangeHigh().ToString() ?? "n/a" });
             result.Add(new StrategyMetric() { Name = "DCA sizes", FormattedValue = GetDCASizes() });
             result.Add(new StrategyMetric() { Name = "DCA %", FormattedValue = GetDCAPercentages() });
-            
+            result.Add(new StrategyMetric() { Name = "Strategy Side", FormattedValue = this.strategySide.ToString() });
+            result.Add(new StrategyMetric() { Name = "Expected Contracts", FormattedValue = this.expectedContracts.ToString() });
 
             return result;
         }
@@ -102,9 +103,9 @@ namespace BoomerangQT
             return rangeLow ?? 0.0;
         }
 
-        private int GetNumberDCA()
+        private int GetExecutedDCALevel()
         {
-            return numberDCA;
+            return executedDCALevel;
         }
 
         private double GetRangeHigh()
