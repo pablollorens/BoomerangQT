@@ -123,13 +123,13 @@ namespace BoomerangQT
                     SortIndex = 70
                 });
 
-                settings.Add(new SettingItemInteger("minimumRangeSize", minimumRangeSize)
+                settings.Add(new SettingItemDouble("minimumRangeSize", minimumRangeSize)
                 {
                     Text = "Minimum Range Size",
                     SortIndex = 75,
-                    Minimum = 1,
+                    Minimum = 0.0,
                     Maximum = 500,
-                    Increment = 1,
+                    Increment = 0.1,
                 });
 
                 // First Entry Option
@@ -206,7 +206,7 @@ namespace BoomerangQT
 
                 SettingItem enableBreakEvenSettingItem = new SettingItemBoolean("enableBreakEven", enableBreakEven)
                 {
-                    Text = "Enable Break Even",
+                    Text = "Enable Breakeven",
                     SortIndex = 200
                 };
 
@@ -306,7 +306,7 @@ namespace BoomerangQT
                 if (value.TryGetValue("closePositionsAtTime", out DateTime closePositionsAtTimeValue))
                     closePositionsAtTime = closePositionsAtTimeValue;
 
-                if (value.TryGetValue("minimumRangeSize", out int minimumRangeSizeValue))
+                if (value.TryGetValue("minimumRangeSize", out double minimumRangeSizeValue))
                     minimumRangeSize = minimumRangeSizeValue;
 
                 if (value.TryGetValue("firstEntryOption", out FirstEntryOption firstEntryOptionValue))

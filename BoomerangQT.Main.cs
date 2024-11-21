@@ -46,7 +46,7 @@ namespace BoomerangQT
         public double dcaPercentage3 = 0.10;
         public int dcaQuantity3 = 1;
 
-        private int minimumRangeSize = 30;
+        private double minimumRangeSize = 0;
 
         public override string[] MonitoringConnectionsIds => CurrentSymbol != null ? new[] { CurrentSymbol.ConnectionId } : new string[0];
 
@@ -417,8 +417,6 @@ namespace BoomerangQT
                         {
                             strategyStatus = Status.BreakoutDetection;
                         }
-
-                        
 
                         strategyStatus = Status.BreakoutDetection;
                     }

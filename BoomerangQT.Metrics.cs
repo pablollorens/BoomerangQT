@@ -29,11 +29,11 @@ namespace BoomerangQT
 
             result.Add(new StrategyMetric() { Name = "Strategy Status", FormattedValue = this.getStatus() });
             AddBreakevenInformation(result);
-            result.Add(new StrategyMetric() { Name = "Closing Positions At", FormattedValue = closePositionsAtTime.ToString("MM/dd/yyyy HH:mm") });
-            result.Add(new StrategyMetric() { Name = "Detection End Time", FormattedValue = detectionEndTime.ToString("MM/dd/yyyy HH:mm") });
-            result.Add(new StrategyMetric() { Name = "Detection Start Time", FormattedValue = detectionStartTime.ToString("MM/dd/yyyy HH:mm") });
-            result.Add(new StrategyMetric() { Name = "End Time", FormattedValue = endTime.ToString("MM/dd/yyyy HH:mm") });
-            result.Add(new StrategyMetric() { Name = "Start Time", FormattedValue = startTime.ToString("MM/dd/yyyy HH:mm") });
+            result.Add(new StrategyMetric() { Name = "Closing Positions At", FormattedValue = closePositionsAt.DateTime.ToString("MM/dd/yyyy HH:mm") });
+            result.Add(new StrategyMetric() { Name = "Detection End Time", FormattedValue = detectionEnd.DateTime.ToString("MM/dd/yyyy HH:mm") });
+            result.Add(new StrategyMetric() { Name = "Detection Start Time", FormattedValue = detectionStart.DateTime.ToString("MM/dd/yyyy HH:mm") });
+            result.Add(new StrategyMetric() { Name = "End Time", FormattedValue = rangeEnd.DateTime.ToString("MM/dd/yyyy HH:mm") });
+            result.Add(new StrategyMetric() { Name = "Start Time", FormattedValue = rangeStart.DateTime.ToString("MM/dd/yyyy HH:mm") });
             result.Add(new StrategyMetric() { Name = "Timeframe", FormattedValue = timeframe });
             result.Add(new StrategyMetric() { Name = "Asset", FormattedValue = CurrentSymbol.Name });
             result.Add(new StrategyMetric() { Name = "Contracts used", FormattedValue = GetCurrentContractsUsed().ToString() });
@@ -46,6 +46,7 @@ namespace BoomerangQT
                 Name = "Range Size",
                 FormattedValue = GetRangeSize() == 0.0 ? "N/A" : GetRangeSize().ToString()
             });
+            result.Add(new StrategyMetric() { Name = "Minimum Range Size", FormattedValue = this.minimumRangeSize.ToString() ?? "n/a" });
             result.Add(new StrategyMetric() { Name = "DCA sizes", FormattedValue = GetDCASizes() });
             result.Add(new StrategyMetric() { Name = "DCA %", FormattedValue = GetDCAPercentages() });
             result.Add(new StrategyMetric() { Name = "Strategy Side", FormattedValue = this.strategySide.ToString() });
