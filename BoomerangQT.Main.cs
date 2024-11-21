@@ -418,7 +418,7 @@ namespace BoomerangQT
                             strategyStatus = Status.BreakoutDetection;
                         }
 
-                        Log($"Range for day {currentTime:yyyy-MM-dd} detection ended. Final Range - High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
+                        
 
                         strategyStatus = Status.BreakoutDetection;
                     }
