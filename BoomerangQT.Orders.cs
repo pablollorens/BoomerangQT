@@ -202,7 +202,11 @@ namespace BoomerangQT
 
                 // We should increment quantityToManage with next DCA level to potentially get hit
                 var nextDCALevel = executedDCALevel + 1;
-                if (nextDCALevel < 3)
+
+                Log($"executedDCALevel: {executedDCALevel}");
+                Log($"nextDCALevel: {nextDCALevel}");
+
+                if (nextDCALevel < 3 && dcaLevels.Count > 0)
                 {
                     foreach (var dcaLevel in dcaLevels)
                     {
@@ -229,7 +233,7 @@ namespace BoomerangQT
                     // We just started to hit an iceberg (DCA level) don't do anything yet
                 }
 
-                if (currentPosition.Quantity == expectedContracts)
+                if (currentPosition.Quantity == expectedContracts && executedDCALevel < dcaLevels.Count)
                 {
                     executedDCALevel++;
                     Log($"We just hit the ICEBERG, DCA number: {executedDCALevel}");
