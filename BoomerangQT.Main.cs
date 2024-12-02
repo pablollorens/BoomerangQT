@@ -73,6 +73,8 @@ namespace BoomerangQT
         private double? openPrice = null;
         private Side? strategySide = null;
 
+        private bool semaphoreOnPositionUpdated = false;
+
         private double totalNetPl;
         private double totalGrossPl;
         private double totalFee;
@@ -624,6 +626,8 @@ namespace BoomerangQT
         {
             try
             {
+                semaphoreOnPositionUpdated = false;
+
                 // Iterate over all open positions
                 foreach (var position in Core.Positions)
                 {

@@ -186,6 +186,10 @@ namespace BoomerangQT
         // I believe so far that the issue is in entering order not touching SL or TP which decrease the number of contracts
         private void OnPositionUpdated(Position position)
         {
+            if (this.semaphoreOnPositionUpdated == true) return;
+
+            this.semaphoreOnPositionUpdated = true;
+
             //Log($"OnPositionUpdated", StrategyLoggingLevel.Trading);
 
             //Log($"Position updated: {position}");
@@ -233,8 +237,7 @@ namespace BoomerangQT
                 strategyStatus = Status.ManagingTrade;
                 //Log($"StrategyStatus is moved to: {strategyStatus}");
             }
-
-            if (strategyStatus == Status.ManagingTrade)
+            else if (strategyStatus == Status.ManagingTrade)
             {
                 if (currentPosition.Quantity > currentContractsUsed)
                 {
@@ -263,6 +266,8 @@ namespace BoomerangQT
                     }
                 }
             }
+
+            this.semaphoreOnPositionUpdated = false;
         }
 
         private void ProtectPosition()
