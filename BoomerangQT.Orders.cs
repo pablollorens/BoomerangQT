@@ -186,19 +186,22 @@ namespace BoomerangQT
         // I believe so far that the issue is in entering order not touching SL or TP which decrease the number of contracts
         private void OnPositionUpdated(Position position)
         {
+            //Log($"OnPositionUpdated, locked semaphore: {this.semaphoreOnPositionUpdated}", StrategyLoggingLevel.Trading);
+
             if (this.semaphoreOnPositionUpdated == true) return;
 
             this.semaphoreOnPositionUpdated = true;
 
-            //Log($"OnPositionUpdated", StrategyLoggingLevel.Trading);
-
             //Log($"Position updated: {position}");
 
             // We need to identify moments to skip this checking, because we only want to protect the complete position
-            if (currentPosition.Quantity < expectedContracts) return; // Contracts are probably being added to the position, not complete yet, this will also accept adding contracts via DCA orders
+            if (currentPosition.Quantity < expectedContracts)
+            {
+                this.semaphoreOnPositionUpdated = false; // Release the lock
+                return; // Contracts are probably being added to the position, not complete yet, this will also accept adding contracts via DCA orders
+            }
 
             // If expected contracts are not smaller and probably the same as the current positions contracts, we understand that the position is complete and we can continue
-            
 
             if (strategyStatus == Status.BreakoutDetection || strategyStatus == Status.WaitingToEnter) // This will make sure that position only gets protected and dca placed once
             {
