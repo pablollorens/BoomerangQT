@@ -527,6 +527,8 @@ namespace BoomerangQT
                 // Cancel all DCA orders
                 CancelDcaOrders();
 
+                UnsubscribeFromPositionUpdates();
+
                 // Reset DCA levels
                 foreach (var dcaLevel in dcaLevels)
                 {
@@ -605,11 +607,43 @@ namespace BoomerangQT
                 Core.PositionAdded -= OnPositionAdded;
                 Core.PositionRemoved -= OnPositionRemoved;
                 Core.TradeAdded -= this.Core_TradeAdded;
+
+                // Disconnect OnPositionUpdated from any current positions
+                UnsubscribeFromPositionUpdates();
+
                 base.OnStop();
             }
             catch (Exception ex)
             {
                 Log($"Exception in OnStop: {ex.Message}", StrategyLoggingLevel.Error);
+            }
+        }
+
+        // Helper method to unsubscribe OnPositionUpdated
+        private void UnsubscribeFromPositionUpdates()
+        {
+            try
+            {
+                // Iterate over all open positions
+                foreach (var position in Core.Positions)
+                {
+                    if (position.Symbol.Name.StartsWith(CurrentSymbol.Name) && position.Account == CurrentAccount)
+                    {
+                        position.Updated -= OnPositionUpdated;
+                        Log($"Unsubscribed from OnPositionUpdated for position: {position}", StrategyLoggingLevel.Trading);
+                    }
+                }
+
+                // Disconnect from the local variable `currentPosition` if it is still assigned
+                if (currentPosition != null)
+                {
+                    currentPosition.Updated -= OnPositionUpdated;
+                    Log("Unsubscribed from OnPositionUpdated for the currentPosition.", StrategyLoggingLevel.Trading);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"Exception in UnsubscribeFromPositionUpdates: {ex.Message}", StrategyLoggingLevel.Error);
             }
         }
     }

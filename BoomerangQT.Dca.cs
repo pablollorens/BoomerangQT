@@ -36,7 +36,7 @@ namespace BoomerangQT
                     AddDcaLevel(3, enableDcaLevel3, dcaPercentage3, dcaQuantity3);
                 }
 
-                Log("DCA levels initialized based on the first entry option.", StrategyLoggingLevel.Trading);
+                //Log("DCA levels initialized based on the first entry option.", StrategyLoggingLevel.Trading);
 
                 // Sort DCA levels by trigger percentage in ascending order
                 dcaLevels = dcaLevels.OrderBy(d => d.TriggerPercentage).ToList();
@@ -44,7 +44,7 @@ namespace BoomerangQT
                 // Print the activated DCA levels
                 foreach (var dcaLevel in dcaLevels)
                 {
-                    Log($"Activated DCA Level {dcaLevel.LevelNumber}: Trigger Percentage = {dcaLevel.TriggerPercentage}, Quantity = {dcaLevel.Quantity}", StrategyLoggingLevel.Trading);
+                    //Log($"Activated DCA Level {dcaLevel.LevelNumber}: Trigger Percentage = {dcaLevel.TriggerPercentage}, Quantity = {dcaLevel.Quantity}", StrategyLoggingLevel.Trading);
                 }
             }
             catch (Exception ex)
@@ -98,11 +98,11 @@ namespace BoomerangQT
                     }
                     else
                     {
-                        Log($"Result of adding a DCA: {result}");
-                        Log($"DCA Level {dcaLevel.LevelNumber} order placed at {triggerPrice}.", StrategyLoggingLevel.Trading);
+                        //Log($"Result of adding a DCA: {result}");
+                        //Log($"DCA Level {dcaLevel.LevelNumber} order placed at {triggerPrice}.", StrategyLoggingLevel.Trading);
                         dcaLevel.OrderId = result.OrderId;
                         dcaOrders.Add(result.OrderId);
-                        Log($"DCA order list: {dcaOrders.Count}");
+                        //Log($"DCA order list: {dcaOrders.Count}");
                     }
                 }
             }
@@ -128,7 +128,7 @@ namespace BoomerangQT
                 ? entryPrice - entryPrice * (percentage / 100)
                 : entryPrice + entryPrice * (percentage / 100);
 
-                Log($"Calculated DCA Price: {dcaPrice}", StrategyLoggingLevel.Trading);
+                //Log($"Calculated DCA Price: {dcaPrice}", StrategyLoggingLevel.Trading);
 
                 return dcaPrice;
             }
@@ -155,11 +155,11 @@ namespace BoomerangQT
                         //Log($"cancelResult: {cancelResult}");
                         if (cancelResult.Status == TradingOperationResultStatus.Failure)
                         {
-                            Log($"Failed to cancel DCA order {orderId}: {cancelResult.Message}", StrategyLoggingLevel.Error);
+                            //Log($"Failed to cancel DCA order {orderId}: {cancelResult.Message}", StrategyLoggingLevel.Error);
                         }
                         else
                         {
-                            Log($"DCA order {orderId} cancelled.", StrategyLoggingLevel.Trading);
+                            //Log($"DCA order {orderId} cancelled.", StrategyLoggingLevel.Trading);
                         }
                     }
                 }

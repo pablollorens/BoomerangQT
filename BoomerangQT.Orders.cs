@@ -16,7 +16,7 @@ namespace BoomerangQT
                 // Determine side if not provided (based on breakout direction or default)
                 if (!side.HasValue)
                 {
-                    Log($"Side not set", StrategyLoggingLevel.Error);
+                    //Log($"Side not set", StrategyLoggingLevel.Error);
                     Stop();
                 }
 
@@ -52,9 +52,10 @@ namespace BoomerangQT
 
         private void PlaceTrade(Side side)
         {
+            Log($"PlaceTrade", StrategyLoggingLevel.Trading);
             try
             {
-                Log($"Placing {side} trade.", StrategyLoggingLevel.Trading);
+                //Log($"Placing {side} trade.", StrategyLoggingLevel.Trading);
 
                 // Ensure initialQuantity is above 0, otherwise use 1
                 var quantityToUse = initialQuantity > 0 ? initialQuantity : 1;
@@ -73,7 +74,9 @@ namespace BoomerangQT
                 if (result.Status == TradingOperationResultStatus.Failure)
                     Log($"Failed to place order: {result.Message}", StrategyLoggingLevel.Error);
                 else
-                    Log("Order placed successfully.", StrategyLoggingLevel.Trading);
+                {
+                    //Log("Order placed successfully.", StrategyLoggingLevel.Trading);
+                }
             }
             catch (Exception ex)
             {
@@ -96,13 +99,13 @@ namespace BoomerangQT
 
                 if (dcaLevel == null)
                 {
-                    Log($"DCA Level {levelNumber} is not enabled.", StrategyLoggingLevel.Error);
+                    //Log($"DCA Level {levelNumber} is not enabled.", StrategyLoggingLevel.Error);
                     return;
                 }
 
                 dcaLevel.IsFirstEntry = true;
 
-                Log($"Placing first entry at DCA Level {levelNumber} with quantity {dcaLevel.Quantity}.", StrategyLoggingLevel.Trading);
+                //Log($"Placing first entry at DCA Level {levelNumber} with quantity {dcaLevel.Quantity}.", StrategyLoggingLevel.Trading);
 
                 var result = Core.Instance.PlaceOrder(new PlaceOrderRequestParameters
                 {
@@ -116,12 +119,12 @@ namespace BoomerangQT
 
                 if (result.Status == TradingOperationResultStatus.Failure)
                 {
-                    Log($"Failed to place DCA Level {levelNumber} entry: {result.Message}", StrategyLoggingLevel.Error);
+                    //Log($"Failed to place DCA Level {levelNumber} entry: {result.Message}", StrategyLoggingLevel.Error);
                     Stop();
                 }
                 else
                 {
-                    Log($"DCA Level {levelNumber} entry placed successfully.", StrategyLoggingLevel.Trading);
+                    //Log($"DCA Level {levelNumber} entry placed successfully.", StrategyLoggingLevel.Trading);
                     expectedContracts = dcaLevel.Quantity;
                     strategyStatus = Status.WaitingToEnter;
                 }
@@ -139,12 +142,12 @@ namespace BoomerangQT
             {
                 Log($"OnPositionAdded", StrategyLoggingLevel.Trading);
 
-                Log($"status: {strategyStatus} - WaitingForRange or ManagingTrade will make us exit this function");
+                //Log($"status: {strategyStatus} - WaitingForRange or ManagingTrade will make us exit this function");
 
                 if (strategyStatus == Status.WaitingForRange || strategyStatus == Status.ManagingTrade)
                 {
-                    Log($"Exiting function OnPositionAdded");
-                    Log($"Position: {position}");
+                    //Log($"Exiting function OnPositionAdded");
+                    //Log($"Position: {position}");
                     return;
                 }
 
@@ -160,12 +163,17 @@ namespace BoomerangQT
 
                 currentPosition = position;
 
-                position.Updated += OnPositionUpdated;
+                if (currentPosition != null)
+                {
+                    currentPosition.Updated -= OnPositionUpdated; // Remove any existing subscription
+                    currentPosition.Updated += OnPositionUpdated; // Add a fresh subscription
+                    Log("Subscribed to OnPositionUpdated for the new currentPosition.", StrategyLoggingLevel.Trading);
+                }
                 //Log($"CurrentPosition is set");
 
                 //Log($"New position added. Side: {position.Side}, Quantity: {position.Quantity}, Open Price: {position.OpenPrice}", StrategyLoggingLevel.Trading);
 
-                
+
             }
             catch (Exception ex)
             {
@@ -178,7 +186,7 @@ namespace BoomerangQT
         // I believe so far that the issue is in entering order not touching SL or TP which decrease the number of contracts
         private void OnPositionUpdated(Position position)
         {
-            //Log($"OnPositionUpdated", StrategyLoggingLevel.Trading);
+            Log($"OnPositionUpdated", StrategyLoggingLevel.Trading);
 
             //Log($"Position updated: {position}");
 
@@ -203,27 +211,27 @@ namespace BoomerangQT
                 // We should increment quantityToManage with next DCA level to potentially get hit
                 var nextDCALevel = executedDCALevel + 1;
 
-                Log($"executedDCALevel: {executedDCALevel}");
-                Log($"nextDCALevel: {nextDCALevel}");
+                //Log($"executedDCALevel: {executedDCALevel}");
+                //Log($"nextDCALevel: {nextDCALevel}");
 
                 if (nextDCALevel < 3 && dcaLevels.Count > 0)
                 {
                     foreach (var dcaLevel in dcaLevels)
                     {
-                        Log($"debugging stuff: { dcaLevel }");
+                        //Log($"debugging stuff: { dcaLevel }");
                     }
                     
                     var nextLevel = dcaLevels.FirstOrDefault(d => d.LevelNumber == nextDCALevel);
-                    Log($"nextLevel: {nextLevel}");
-                    Log($"nextLevel.Quantity: {nextLevel.Quantity}");
+                    //Log($"nextLevel: {nextLevel}");
+                    //Log($"nextLevel.Quantity: {nextLevel.Quantity}");
 
                     expectedContracts += nextLevel.Quantity;
                     
-                    Log($"Number of expected contrats updated to: {expectedContracts}");
+                    //Log($"Number of expected contrats updated to: {expectedContracts}");
                 }
 
                 strategyStatus = Status.ManagingTrade;
-                Log($"StrategyStatus is moved to: {strategyStatus}");
+                //Log($"StrategyStatus is moved to: {strategyStatus}");
             }
 
             if (strategyStatus == Status.ManagingTrade)
@@ -236,18 +244,19 @@ namespace BoomerangQT
                 if (currentPosition.Quantity == expectedContracts && executedDCALevel < dcaLevels.Count)
                 {
                     executedDCALevel++;
-                    Log($"We just hit the ICEBERG, DCA number: {executedDCALevel}");
+                    //Log($"We just hit the ICEBERG, DCA number: {executedDCALevel}");
                     ProtectPosition(); // Whatever happens if position is complete we should protect it
 
                     currentContractsUsed = currentPosition.Quantity;
 
                     // We should increment quantityToManage with next DCA level to potentially get hit
                     var nextDCALevel = executedDCALevel + 1;
-                    if (nextDCALevel < 3)
+
+                    if (nextDCALevel <= dcaLevels.Count)
                     {
                         var nextLevel = dcaLevels.FirstOrDefault(d => d.LevelNumber == nextDCALevel);
                         expectedContracts += nextLevel.Quantity;
-                        Log($"Number of expected contrats updated to: {expectedContracts}");
+                        //Log($"Number of expected contrats updated to: {expectedContracts}");
                     } else
                     {
                         expectedContracts = 0; // We don't expect more contracts anymore
@@ -268,7 +277,7 @@ namespace BoomerangQT
                 // Place initial TP
                 PlaceOrUpdateTakeProfit();
 
-                Log("Position PROTECTED", StrategyLoggingLevel.Trading);
+                //Log("Position PROTECTED", StrategyLoggingLevel.Trading);
             }
             catch (Exception ex)
             {
@@ -285,7 +294,7 @@ namespace BoomerangQT
 
                 var stopLossPrice = CalculateStopLossPrice();
 
-                Log($"Stop Loss price: {stopLossPrice}", StrategyLoggingLevel.Trading);
+                //Log($"Stop Loss price: {stopLossPrice}", StrategyLoggingLevel.Trading);
 
                 if (stopLossPrice == null)
                 {
@@ -315,7 +324,7 @@ namespace BoomerangQT
                     Log($"Failed to place Stop Loss order: {result.Message}", StrategyLoggingLevel.Error);
                 else
                 {
-                    Log($"Stop Loss order placed at {stopLossPrice} with quantity {currentPosition.Quantity}.", StrategyLoggingLevel.Trading);
+                    //Log($"Stop Loss order placed at {stopLossPrice} with quantity {currentPosition.Quantity}.", StrategyLoggingLevel.Trading);
                     stopLossOrderId = result.OrderId;
                 }
             }
@@ -334,7 +343,7 @@ namespace BoomerangQT
 
                 var takeProfitPrice = CalculateTakeProfitPrice();
 
-                Log($"takeProfitPrice ---: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+                //Log($"takeProfitPrice ---: {takeProfitPrice}", StrategyLoggingLevel.Trading);
 
                 var request = new PlaceOrderRequestParameters
                 {
@@ -351,7 +360,7 @@ namespace BoomerangQT
                     }
                 };
 
-                Log($"Cancelling previous takeProfitOrderId {takeProfitOrderId}", StrategyLoggingLevel.Trading);
+                //Log($"Cancelling previous takeProfitOrderId {takeProfitOrderId}", StrategyLoggingLevel.Trading);
                 CancelExistingOrder(takeProfitOrderId);
 
                 var result = Core.Instance.PlaceOrder(request);
@@ -359,7 +368,7 @@ namespace BoomerangQT
                     Log($"Failed to place Take Profit order: {result.Message}", StrategyLoggingLevel.Error);
                 else
                 {
-                    Log($"Take Profit order placed at {takeProfitPrice} with quantity {currentPosition.Quantity}.", StrategyLoggingLevel.Trading);
+                    //Log($"Take Profit order placed at {takeProfitPrice} with quantity {currentPosition.Quantity}.", StrategyLoggingLevel.Trading);
                     takeProfitOrderId = result.OrderId;
                 }
             }
@@ -376,13 +385,13 @@ namespace BoomerangQT
             {
                 if (stopLossGlobalPrice != null) return stopLossGlobalPrice;
 
-                Log($"Calculating Stop Loss Price. OpenPrice: {this.openPrice}, Side: {strategySide}, StopLossPercentage: {stopLossPercentage}");
+                //Log($"Calculating Stop Loss Price. OpenPrice: {this.openPrice}, Side: {strategySide}, StopLossPercentage: {stopLossPercentage}");
 
                 double stopLossPrice = strategySide == Side.Buy
                     ? (double) this.openPrice - (double) this.openPrice * (stopLossPercentage / 100)
                     : (double) this.openPrice + (double) this.openPrice * (stopLossPercentage / 100);
 
-                Log($"Calculated Stop Loss Price: {stopLossPrice}", StrategyLoggingLevel.Trading);
+                //Log($"Calculated Stop Loss Price: {stopLossPrice}", StrategyLoggingLevel.Trading);
 
                 stopLossGlobalPrice = stopLossPrice;
 
@@ -414,9 +423,9 @@ namespace BoomerangQT
                     // Adjust the TP according to the TP adjustment settings
                     double adjustment = 0.0;
 
-                    Log($"tpAdjustmentType: {tpAdjustmentType}");
+                    //Log($"tpAdjustmentType: {tpAdjustmentType}");
 
-                    Log($"(TpAdjustmentType)tpAdjustmentType: {(TpAdjustmentType)tpAdjustmentType}");
+                    //Log($"(TpAdjustmentType)tpAdjustmentType: {(TpAdjustmentType)tpAdjustmentType}");
 
                     switch ((TpAdjustmentType)tpAdjustmentType)
                     {
@@ -450,11 +459,11 @@ namespace BoomerangQT
                         breakevenPrice = breakevenPrice - (double) adjustment;
                     }
 
-                    Log($"Type of Breakeven: {(TpAdjustmentType)tpAdjustmentType}", StrategyLoggingLevel.Trading);
-                    Log($"Breakeven value: {adjustment}", StrategyLoggingLevel.Trading);
-                    Log($"New calculated Breakeven Price: {breakevenPrice}", StrategyLoggingLevel.Trading);
+                    //Log($"Type of Breakeven: {(TpAdjustmentType)tpAdjustmentType}", StrategyLoggingLevel.Trading);
+                    //Log($"Breakeven value: {adjustment}", StrategyLoggingLevel.Trading);
+                    //Log($"New calculated Breakeven Price: {breakevenPrice}", StrategyLoggingLevel.Trading);
                     takeProfitPrice = breakevenPrice;
-                    Log($"Breakeven conditions met. Adjusted Take Profit to breakeven price: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+                   // Log($"Breakeven conditions met. Adjusted Take Profit to breakeven price: {takeProfitPrice}", StrategyLoggingLevel.Trading);
 
                     return takeProfitPrice;
                 }
@@ -465,11 +474,11 @@ namespace BoomerangQT
                         if (rangeHigh.HasValue && rangeLow.HasValue)
                         {
                             takeProfitPrice = currentPosition.Side == Side.Buy ? rangeHigh.Value : rangeLow.Value;
-                            Log($"Take Profit set to opposite side of range: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+                            //Log($"Take Profit set to opposite side of range: {takeProfitPrice}", StrategyLoggingLevel.Trading);
                         }
                         else
                         {
-                            Log("Range values are not set. Cannot calculate TP based on opposite side of range.", StrategyLoggingLevel.Error);
+                            //Log("Range values are not set. Cannot calculate TP based on opposite side of range.", StrategyLoggingLevel.Error);
                         }
                         break;
 
@@ -478,14 +487,14 @@ namespace BoomerangQT
                         takeProfitPrice = currentPosition.Side == Side.Buy
                             ? currentPosition.OpenPrice + (currentPosition.OpenPrice * tpPercentage)
                             : currentPosition.OpenPrice - (currentPosition.OpenPrice * tpPercentage);
-                        Log($"Take Profit set using fixed percentage: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+                        //Log($"Take Profit set using fixed percentage: {takeProfitPrice}", StrategyLoggingLevel.Trading);
                         break;
 
                     case TPType.FixedPoints:
                         takeProfitPrice = currentPosition.Side == Side.Buy
                             ? currentPosition.OpenPrice + takeProfitPoints
                             : currentPosition.OpenPrice - takeProfitPoints;
-                        Log($"Take Profit set using fixed points: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+                        //Log($"Take Profit set using fixed points: {takeProfitPrice}", StrategyLoggingLevel.Trading);
                         break;
                 }
 
@@ -510,14 +519,14 @@ namespace BoomerangQT
 
                     if (existingOrder != null)
                     {
-                        Log($"Cancelling existing order ID: {existingOrder.Id}", StrategyLoggingLevel.Trading);
+                        //Log($"Cancelling existing order ID: {existingOrder.Id}", StrategyLoggingLevel.Trading);
 
                         var cancelResult = Core.Instance.CancelOrder(existingOrder);
                         if (cancelResult.Status == TradingOperationResultStatus.Failure)
                             Log($"Failed to cancel existing order: {cancelResult.Message}", StrategyLoggingLevel.Error);
                         else
                         {
-                            Log("Existing order cancelled successfully.", StrategyLoggingLevel.Trading);
+                            //Log("Existing order cancelled successfully.", StrategyLoggingLevel.Trading);
 
                             // Reset the reference
                             if (orderId == stopLossOrderId)
@@ -528,7 +537,7 @@ namespace BoomerangQT
                     }
                     else
                     {
-                        Log($"Order with ID {orderId} not found or not active.", StrategyLoggingLevel.Trading);
+                        //Log($"Order with ID {orderId} not found or not active.", StrategyLoggingLevel.Trading);
                     }
                 }
             }
@@ -578,7 +587,7 @@ namespace BoomerangQT
                 stopLossOrderId = null;
                 takeProfitOrderId = null;
 
-                Log($"SL and TP removed succesfully");
+                //Log($"SL and TP removed succesfully");
 
                 // Cancel DCA orders
                 CancelDcaOrders();
@@ -591,13 +600,15 @@ namespace BoomerangQT
 
         private void OnPositionRemoved(Position position)
         {
+            Log("OnPositionRemoved", StrategyLoggingLevel.Trading);
+
             try
             {
                 if (position.Symbol == null || CurrentSymbol == null || !position.Symbol.Name.StartsWith(CurrentSymbol.Name) || position.Account != CurrentAccount) return;
                 if (currentPosition == null) return;
                 if (currentPosition.Id != position.Id) return;
 
-                Log($"OnPositionRemove event called - Position {position.Id} has been closed.", StrategyLoggingLevel.Trading);
+                //Log($"OnPositionRemove event called - Position {position.Id} has been closed.", StrategyLoggingLevel.Trading);
 
                 // Cancel any remaining orders associated with the position
                 CancelAssociatedOrders();
