@@ -186,7 +186,7 @@ namespace BoomerangQT
         // I believe so far that the issue is in entering order not touching SL or TP which decrease the number of contracts
         private void OnPositionUpdated(Position position)
         {
-            Log($"OnPositionUpdated", StrategyLoggingLevel.Trading);
+            //Log($"OnPositionUpdated", StrategyLoggingLevel.Trading);
 
             //Log($"Position updated: {position}");
 
