@@ -41,6 +41,12 @@ namespace BoomerangQT
                 // Sort DCA levels by trigger percentage in ascending order
                 dcaLevels = dcaLevels.OrderBy(d => d.TriggerPercentage).ToList();
 
+                // Rename the LevelNumber after sorting
+                for (int i = 0; i < dcaLevels.Count; i++)
+                {
+                    dcaLevels[i].LevelNumber = i + 1; // Renumber starting from 1
+                }
+
                 // Print the activated DCA levels
                 foreach (var dcaLevel in dcaLevels)
                 {
