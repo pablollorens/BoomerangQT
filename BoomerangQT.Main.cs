@@ -589,8 +589,27 @@ namespace BoomerangQT
                     return false;
                 }
 
+                if ((firstEntryOption == FirstEntryOption.DcaLevel1 && !enableDcaLevel1) ||
+                    (firstEntryOption == FirstEntryOption.DcaLevel2 && !enableDcaLevel2) ||
+                    (firstEntryOption == FirstEntryOption.DcaLevel3 && !enableDcaLevel3))
+                {
+                    Log($"Your main entry it is a DCA level that is not enabled", StrategyLoggingLevel.Error);
+                    return false;
+                }
 
+                if ((breakevenOption == BreakevenOption.DcaLevel1 && !enableDcaLevel1) ||
+                    (breakevenOption == BreakevenOption.DcaLevel2 && !enableDcaLevel2) ||
+                    (breakevenOption == BreakevenOption.DcaLevel3 && !enableDcaLevel3))
+                {
+                    Log($"Your breakeven point it is a DCA level that is not enabled", StrategyLoggingLevel.Error);
+                    return false;
+                }
 
+                if (breakevenOption == BreakevenOption.EveryDcaLevel && (!enableDcaLevel1 && !enableDcaLevel2 && !enableDcaLevel3))
+                {
+                    Log($"At least you should have one DCA level enabled if BE option is EveryDCALevel", StrategyLoggingLevel.Error);
+                    return false;
+                }
 
 
                 Log("Input parameters validated.", StrategyLoggingLevel.Trading);
