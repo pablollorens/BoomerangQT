@@ -50,7 +50,7 @@ namespace BoomerangQT
             result.Add(new StrategyMetric() { Name = "DCA sizes", FormattedValue = GetDCASizes() });
             result.Add(new StrategyMetric() { Name = "DCA %", FormattedValue = GetDCAPercentages() });
             result.Add(new StrategyMetric() { Name = "Strategy Side", FormattedValue = this.strategySide.ToString() });
-            result.Add(new StrategyMetric() { Name = "Expected Contracts", FormattedValue = this.expectedContracts.ToString() });
+            result.Add(new StrategyMetric() { Name = "Expected cont. after next DCA", FormattedValue = this.expectedContracts.ToString() });
             
             return result;
         }

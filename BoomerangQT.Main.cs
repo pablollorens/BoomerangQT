@@ -583,6 +583,16 @@ namespace BoomerangQT
                     }
                 }
 
+                if ((enableDcaLevel3 && (!enableDcaLevel1 || !enableDcaLevel2)) || (enableDcaLevel2 && !enableDcaLevel1))
+                {
+                    Log($"You have enabled some DCAs but the previous ones are disabled, please double check the configuration", StrategyLoggingLevel.Error);
+                    return false;
+                }
+
+
+
+
+
                 Log("Input parameters validated.", StrategyLoggingLevel.Trading);
                 return true;
             }
