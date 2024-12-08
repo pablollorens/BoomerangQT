@@ -659,6 +659,12 @@ namespace BoomerangQT
                 if (currentPosition == null) return;
                 if (currentPosition.Id != position.Id) return;
 
+                double closedPnL = position.GrossPnL.Value;
+                double lastMaxDrawdown = maxDrawdown;
+
+                // Llamada al método para enviar el email desde el otro archivo parcial
+                SendTradeClosedEmail(position.Symbol.Name, closedPnL, lastMaxDrawdown);
+
                 //Log($"OnPositionRemove event called - Position {position.Id} has been closed.", StrategyLoggingLevel.Trading);
 
                 // Cancel any remaining orders associated with the position
