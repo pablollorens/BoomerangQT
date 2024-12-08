@@ -32,13 +32,11 @@ namespace BoomerangQT
                         PlaceDCALimitOrder(1, side.Value); // This will be a simple limit order, later will be protected by the event that checks when number of contracts used variate
                         break;
                     case FirstEntryOption.DcaLevel2:
-                        PlaceDCALimitOrder(2, side.Value); // This will be a simple limit order, later will be protected by the event that checks when number of contracts used variate
-                        executedDCALevel = 1; // This is like we took one DCA already, the 2nd one will come with the touch of the limit order we just placed
+                        PlaceDCALimitOrder(1, side.Value); // This will be a simple limit order, later will be protected by the event that checks when number of contracts used variate
                         strategyStatus = Status.WaitingToEnter;
                         break;
                     case FirstEntryOption.DcaLevel3:
-                        PlaceDCALimitOrder(3, side.Value); // This will be a simple limit order, later will be protected by the event that checks when number of contracts used variate
-                        executedDCALevel = 2; // This is like we took two DCAs already, the 3rd one will come with the touch of the limit order we just placed
+                        PlaceDCALimitOrder(1, side.Value); // This will be a simple limit order, later will be protected by the event that checks when number of contracts used variate
                         strategyStatus = Status.WaitingToEnter;
                         break;
                 }
@@ -87,19 +85,19 @@ namespace BoomerangQT
 
         private void PlaceDCALimitOrder(int levelNumber, Side side)
         {
-            Log($"PlaceDCALimitOrder");
+            Log($"PlaceDCALimitOrder levelNumber: {levelNumber}");
             try
             {
                 var dcaLevel = dcaLevels.FirstOrDefault(d => d.LevelNumber == levelNumber);
 
-                //foreach (var level in dcaLevels)
-                //{
-                //    Log($"DCALevel: {level}", StrategyLoggingLevel.Trading);
-                //}
+                foreach (var level in dcaLevels)
+                {
+                    Log($"DCALevel: {level}", StrategyLoggingLevel.Trading);
+                }
 
                 if (dcaLevel == null)
                 {
-                    //Log($"DCA Level {levelNumber} is not enabled.", StrategyLoggingLevel.Error);
+                    Log($"DCA Level {levelNumber} is not enabled.", StrategyLoggingLevel.Error);
                     return;
                 }
 
@@ -216,8 +214,18 @@ namespace BoomerangQT
 
                 currentContractsUsed = currentPosition.Quantity;
 
-                executedDCALevel = (int) firstEntryOption;
+                // If main entry is selected the initial DCA will be zero because no DCA level has been utilized, otherwise we have used the first one (always)
+                if (firstEntryOption == FirstEntryOption.MainEntry)
+                {
+                    executedDCALevel = 0;
+                }
+                else
+                {
+                    executedDCALevel = 1;
+                }
 
+                // In case we have defined DCA levels we need to check if there is something else we are expecting to hit
+                // In other words, there could be one or more DCA levels still pending
                 if (dcaLevels.Count > 0)
                 {
                     // We should increment quantityToManage with next DCA level to potentially get hit
@@ -229,7 +237,6 @@ namespace BoomerangQT
                     //Log($"nextDCALevel: {nextDCALevel}");
 
                     // If there are more DCA levels, we check if the next one is actually below or equal to the highest
-
                     if (nextDCALevel <= highestLevel.LevelNumber)
                     {
                         foreach (var dcaLevel in dcaLevels)
@@ -246,6 +253,7 @@ namespace BoomerangQT
                         //Log($"Number of expected contrats updated to: {expectedContracts}");
                     } else
                     {
+                        // If next DCA level is higher than the highest means, we are done expecting DCA levels
                         expectedContracts = 0;
                     }
                 } else

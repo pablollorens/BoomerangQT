@@ -28,12 +28,12 @@ namespace BoomerangQT
                 }
                 else if (firstEntryOption == FirstEntryOption.DcaLevel2)
                 {
-                    AddDcaLevel(2, enableDcaLevel2, dcaPercentage2, dcaQuantity2);
-                    AddDcaLevel(3, enableDcaLevel3, dcaPercentage3, dcaQuantity3);
+                    AddDcaLevel(1, enableDcaLevel2, dcaPercentage2, dcaQuantity2);
+                    AddDcaLevel(2, enableDcaLevel3, dcaPercentage3, dcaQuantity3);
                 }
                 else if (firstEntryOption == FirstEntryOption.DcaLevel3)
                 {
-                    AddDcaLevel(3, enableDcaLevel3, dcaPercentage3, dcaQuantity3);
+                    AddDcaLevel(1, enableDcaLevel3, dcaPercentage3, dcaQuantity3);
                 }
 
                 //Log("DCA levels initialized based on the first entry option.", StrategyLoggingLevel.Trading);
