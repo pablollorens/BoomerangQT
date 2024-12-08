@@ -146,6 +146,10 @@ namespace BoomerangQT
 
                 if (strategyStatus == Status.WaitingForRange || strategyStatus == Status.ManagingTrade)
                 {
+                    // We only want to enter this function if we're waiting for a breakout or we're waiting to enter a DCA first entry
+                    // I think sometimes during intermediate DCA entries the new merged position also calls this function, we don't want to do anything then because 
+                    // for us is just the same position with increased contracts
+
                     //Log($"Exiting function OnPositionAdded");
                     //Log($"Position: {position}");
                     return;
