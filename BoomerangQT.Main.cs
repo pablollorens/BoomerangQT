@@ -408,7 +408,8 @@ namespace BoomerangQT
                     {
                         Log($"Range for day {currentTime:yyyy-MM-dd} detection ended. Final Range - High: {rangeHigh}, Low: {rangeLow}", StrategyLoggingLevel.Trading);
 
-                        double rangeSize = rangeHigh.Value - rangeLow.Value;
+                        double rangeSize = ((rangeHigh.Value - rangeLow.Value) / rangeLow.Value) * 100;
+
                         if (rangeSize < minimumRangeSize)
                         {
                             Log($"Range size {rangeSize} is less than the minimum required {minimumRangeSize}. Resetting strategy.", StrategyLoggingLevel.Trading);

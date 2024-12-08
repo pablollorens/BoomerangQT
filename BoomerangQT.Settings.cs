@@ -125,11 +125,11 @@ namespace BoomerangQT
 
                 settings.Add(new SettingItemDouble("minimumRangeSize", minimumRangeSize)
                 {
-                    Text = "Minimum Range Size",
+                    Text = "Minimum Range Size (%)",
                     SortIndex = 74,
                     Minimum = 0.0,
-                    Maximum = 500,
-                    Increment = 0.1,
+                    Maximum = 100,
+                    Increment = 0.01,
                     DecimalPlaces = 2
                 });
 
