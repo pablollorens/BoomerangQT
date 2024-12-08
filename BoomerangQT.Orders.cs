@@ -151,13 +151,13 @@ namespace BoomerangQT
                     return;
                 }
 
-                //Log($"currentPosition: {currentPosition} - only null will make us continue");
+                Log($"currentPosition: {currentPosition} - only null will make us continue");
 
                 // if a position is being opened: by range breakout when main entry is active or by an execution of a DCA order
                 // This will only happen once per range
                 if (currentPosition != null) return;
 
-                //Log($"position.Symbol: {position.Symbol} and currentSymbol: {CurrentSymbol} should be the same, and the accounts also {position.Account}/{CurrentAccount}");
+                Log($"position.Symbol: {position.Symbol} and currentSymbol: {CurrentSymbol} should be the same, and the accounts also {position.Account}/{CurrentAccount}");
 
                 if (position.Symbol == null || CurrentSymbol == null || !position.Symbol.Name.StartsWith(CurrentSymbol.Name) || position.Account != CurrentAccount) return;
 
@@ -169,6 +169,8 @@ namespace BoomerangQT
                     currentPosition.Updated += OnPositionUpdated; // Add a fresh subscription
                     Log("Subscribed to OnPositionUpdated for the new currentPosition.", StrategyLoggingLevel.Trading);
                 }
+
+
                 //Log($"CurrentPosition is set");
 
                 //Log($"New position added. Side: {position.Side}, Quantity: {position.Quantity}, Open Price: {position.OpenPrice}", StrategyLoggingLevel.Trading);
@@ -210,35 +212,44 @@ namespace BoomerangQT
 
                 currentContractsUsed = currentPosition.Quantity;
 
-                if (strategyStatus == Status.WaitingToEnter)
+                executedDCALevel = (int) firstEntryOption;
+
+                if (dcaLevels.Count > 0)
                 {
-                    executedDCALevel = (int) firstEntryOption;
-                }
+                    // We should increment quantityToManage with next DCA level to potentially get hit
+                    var nextDCALevel = executedDCALevel + 1;
 
-                // We should increment quantityToManage with next DCA level to potentially get hit
-                var nextDCALevel = executedDCALevel + 1;
+                    var highestLevel = dcaLevels.OrderByDescending(d => d.LevelNumber).FirstOrDefault();
 
-                var highestLevel = dcaLevels.OrderByDescending(d => d.LevelNumber).FirstOrDefault();
+                    //Log($"executedDCALevel: {executedDCALevel}");
+                    //Log($"nextDCALevel: {nextDCALevel}");
 
-                //Log($"executedDCALevel: {executedDCALevel}");
-                //Log($"nextDCALevel: {nextDCALevel}");
+                    // If there are more DCA levels, we check if the next one is actually below or equal to the highest
 
-                if (nextDCALevel <= highestLevel.LevelNumber && dcaLevels.Count > 0)
-                {
-                    foreach (var dcaLevel in dcaLevels)
+                    if (nextDCALevel <= highestLevel.LevelNumber)
                     {
-                        //Log($"debugging stuff: { dcaLevel }");
-                    }
-                    
-                    var nextLevel = dcaLevels.FirstOrDefault(d => d.LevelNumber == nextDCALevel);
-                    //Log($"nextLevel: {nextLevel}");
-                    //Log($"nextLevel.Quantity: {nextLevel.Quantity}");
+                        foreach (var dcaLevel in dcaLevels)
+                        {
+                            //Log($"debugging stuff: { dcaLevel }");
+                        }
 
-                    expectedContracts += nextLevel.Quantity;
-                    
-                    //Log($"Number of expected contrats updated to: {expectedContracts}");
+                        var nextLevel = dcaLevels.FirstOrDefault(d => d.LevelNumber == nextDCALevel);
+                        //Log($"nextLevel: {nextLevel}");
+                        //Log($"nextLevel.Quantity: {nextLevel.Quantity}");
+
+                        expectedContracts += nextLevel.Quantity;
+
+                        //Log($"Number of expected contrats updated to: {expectedContracts}");
+                    } else
+                    {
+                        expectedContracts = 0;
+                    }
+                } else
+                {
+                    expectedContracts = 0;
                 }
 
+                // Whatever happens with the expected contracts we're now managing a trade
                 strategyStatus = Status.ManagingTrade;
                 //Log($"StrategyStatus is moved to: {strategyStatus}");
             }
@@ -280,6 +291,8 @@ namespace BoomerangQT
                         expectedContracts = 0;
                     }
                 }
+
+                // Is fair to assume that if there are not expected contracts to reach we're just waiting for the position to close at SL or TP at this point
             }
 
             this.semaphoreOnPositionUpdated = false;
