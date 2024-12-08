@@ -72,6 +72,7 @@ namespace BoomerangQT
         private double? stopLossGlobalPrice = null;
         private double? openPrice = null;
         private Side? strategySide = null;
+        private double maxDrawdown = 0.0;
 
         private bool semaphoreOnPositionUpdated = false;
 
@@ -489,6 +490,13 @@ namespace BoomerangQT
                     Log("Position has been closed externally (TP or SL hit). Resetting strategy.", StrategyLoggingLevel.Trading);
                     ResetStrategy();
                     return;
+                }
+
+                // If current unrealized PnL is more negative than any previously recorded value, update maxDrawdown.
+                // maxDrawdown <= 0 at all times, if currentUnrealizedPnl is positive, no change is needed.
+                if (currentPosition.GrossPnL.Value < maxDrawdown)
+                {
+                    maxDrawdown = currentPosition.GrossPnL.Value;
                 }
 
                 // Check if current time is beyond the position closure time

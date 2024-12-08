@@ -170,6 +170,10 @@ namespace BoomerangQT
                     currentPosition.Updated -= OnPositionUpdated; // Remove any existing subscription
                     currentPosition.Updated += OnPositionUpdated; // Add a fresh subscription
                     Log("Subscribed to OnPositionUpdated for the new currentPosition.", StrategyLoggingLevel.Trading);
+
+                    // Reset maxDrawdown when a new position is established
+                    // At the start, PnL is essentially at 0 (no negative excursion yet)
+                    maxDrawdown = 0.0;
                 }
 
 

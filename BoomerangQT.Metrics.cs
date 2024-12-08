@@ -38,6 +38,7 @@ namespace BoomerangQT
             result.Add(new StrategyMetric() { Name = "Asset", FormattedValue = CurrentSymbol.Name });
             result.Add(new StrategyMetric() { Name = "Contracts used", FormattedValue = GetCurrentContractsUsed().ToString() });
             result.Add(new StrategyMetric() { Name = "Executed DCA Level", FormattedValue = GetExecutedDCALevel().ToString() });
+            result.Add(new StrategyMetric() { Name = "Max Drawdown", FormattedValue = maxDrawdown.ToString("F2") });
             result.Add(new StrategyMetric() { Name = "Current PnL", FormattedValue = currentPosition?.GrossPnL.ToString() ?? "n/a" });
             result.Add(new StrategyMetric() { Name = "Range Low", FormattedValue = GetRangeLow().ToString() ?? "n/a" });
             result.Add(new StrategyMetric() { Name = "Range High", FormattedValue = GetRangeHigh().ToString() ?? "n/a" });
