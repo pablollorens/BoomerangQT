@@ -196,6 +196,8 @@ namespace BoomerangQT
         {
             //Log($"OnPositionUpdated, locked semaphore: {this.semaphoreOnPositionUpdated}", StrategyLoggingLevel.Trading);
 
+            if (position.Symbol == null || CurrentSymbol == null || !position.Symbol.Name.StartsWith(CurrentSymbol.Name) || position.Account != CurrentAccount) return;
+
             if (this.semaphoreOnPositionUpdated == true) return;
 
             this.semaphoreOnPositionUpdated = true;

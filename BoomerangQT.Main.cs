@@ -134,6 +134,7 @@ namespace BoomerangQT
             stopLossOrderId = null;
             takeProfitOrderId = null;
             expectedContracts = 0;
+            maxDrawdown = 0.0;
 
             try
             {
@@ -267,20 +268,28 @@ namespace BoomerangQT
                 
                 if (strategyStatus == Status.WaitingForRange)
                 {
-                    
+
                     //Log($"There are {Core.Positions.Count()} position in WaitingForRange", StrategyLoggingLevel.Trading);
 
-                    // We need to check if for any reason there is an open position on the asset we're trading and close them
+                    // We need to check if for any reason there is an open position on the asset we're trading and reset the strategy for the day
+                    bool previousPositionExists = false;
                     if (Core.Positions.Length > 0)
                     {
                         foreach (Position position in Core.Positions)
                         {
                             if (position.Symbol.Name.StartsWith(CurrentSymbol.Name) && position.Account == CurrentAccount)
                             {
-                                Log($"We try to close this position: {position}");
-                                Core.Instance.ClosePosition(position);
+                                previousPositionExists = true;
+                                break;
                             }
                         }
+                    }
+
+                    if (previousPositionExists)
+                    {
+                        Log("If it already exists a position in this asset, we skip the day.", StrategyLoggingLevel.Trading);
+                        ResetStrategy();
+                        return;
                     }
 
                     //Log($"There are {Core.Positions.Count()} positions open now", StrategyLoggingLevel.Trading);
@@ -673,7 +682,7 @@ namespace BoomerangQT
                     if (position.Symbol.Name.StartsWith(CurrentSymbol.Name) && position.Account == CurrentAccount)
                     {
                         position.Updated -= OnPositionUpdated;
-                        Log($"Unsubscribed from OnPositionUpdated for position: {position}", StrategyLoggingLevel.Trading);
+                        //Log($"Unsubscribed from OnPositionUpdated for position: {position}", StrategyLoggingLevel.Trading);
                     }
                 }
 
@@ -681,7 +690,7 @@ namespace BoomerangQT
                 if (currentPosition != null)
                 {
                     currentPosition.Updated -= OnPositionUpdated;
-                    Log("Unsubscribed from OnPositionUpdated for the currentPosition.", StrategyLoggingLevel.Trading);
+                    //Log("Unsubscribed from OnPositionUpdated for the currentPosition.", StrategyLoggingLevel.Trading);
                 }
             }
             catch (Exception ex)
