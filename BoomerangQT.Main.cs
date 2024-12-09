@@ -13,7 +13,7 @@ namespace BoomerangQT
         public Symbol CurrentSymbol { get; set; }
 
         public Account CurrentAccount { get; set; }
-        public string timeframe = "MIN5";
+        public string timeframe = "MIN1";
 
         public DateTime startTime;
         public DateTime endTime;

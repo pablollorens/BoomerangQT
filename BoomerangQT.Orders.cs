@@ -662,7 +662,6 @@ namespace BoomerangQT
                 double closedPnL = position.GrossPnL.Value;
                 double lastMaxDrawdown = maxDrawdown;
 
-                // Llamada al método para enviar el email desde el otro archivo parcial
                 SendTradeClosedEmail(position.Symbol.Name, closedPnL, lastMaxDrawdown);
 
                 //Log($"OnPositionRemove event called - Position {position.Id} has been closed.", StrategyLoggingLevel.Trading);

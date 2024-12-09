@@ -37,6 +37,9 @@ namespace BoomerangQT
             if (!enableEmailNotification)
                 return;
 
+            Log($"pnl: {pnl}");
+            Log($"dd: {maxDrawdown}");
+
             string body = emailBodyTemplate
                 .Replace("{Symbol}", symbol)
                 .Replace("{PnL}", pnl.ToString("F2"))
