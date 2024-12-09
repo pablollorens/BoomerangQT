@@ -664,6 +664,9 @@ namespace BoomerangQT
 
                 SendTradeClosedEmail(position.Symbol.Name, closedPnL, lastMaxDrawdown);
 
+                // Llamada al método para enviar mensaje a telegram desde el otro archivo parcial
+                System.Threading.Tasks.Task tgTask = SendTradeClosedTelegramMsg(position.Symbol.Name, closedPnL, lastMaxDrawdown);
+
                 //Log($"OnPositionRemove event called - Position {position.Id} has been closed.", StrategyLoggingLevel.Trading);
 
                 // Cancel any remaining orders associated with the position
