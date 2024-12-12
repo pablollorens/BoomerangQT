@@ -57,9 +57,9 @@ namespace BoomerangQT
             }
             if (this.takeProfitType == TPType.FixedPoints)
             {
-                result.Add(new StrategyMetric() { Name = "TP %", FormattedValue = this.takeProfitPoints.ToString() });
+                result.Add(new StrategyMetric() { Name = "TP in points", FormattedValue = this.takeProfitPoints.ToString() });
             }
-            result.Add(new StrategyMetric() { Name = "Take Profit type", FormattedValue = this.takeProfitType.ToString() });
+            result.Add(new StrategyMetric() { Name = "TP type", FormattedValue = this.takeProfitType.ToString() });
             result.Add(new StrategyMetric() { Name = "SL %", FormattedValue = this.stopLossPercentage.ToString() });
             if (this.firstEntryOption == FirstEntryOption.MainEntry)
             {

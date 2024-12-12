@@ -10,7 +10,7 @@
     <RootNamespace>BoomerangQT</RootNamespace>
     <StartAction>Program</StartAction>
     <StartProgram>C:\Users\Administrator\Desktop\AMP Quantower\TradingPlatform\v1.141.2\Console.StarterNew.exe</StartProgram>
-    <StartArguments>--address 127.0.0.1 --port 58113</StartArguments>
+    <StartArguments>--address 127.0.0.1 --port 57954</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <OutputPath>C:\Users\Administrator\Desktop\AMP Quantower\TradingPlatform\v1.141.2\..\..\Settings\Scripts\Strategies\BoomerangQT</OutputPath>
