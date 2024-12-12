@@ -37,6 +37,7 @@ namespace BoomerangQT
             result.Add(new StrategyMetric() { Name = "Timeframe", FormattedValue = timeframe });
             result.Add(new StrategyMetric() { Name = "Asset", FormattedValue = CurrentSymbol.Name });
             result.Add(new StrategyMetric() { Name = "Contracts used", FormattedValue = GetCurrentContractsUsed().ToString() });
+            result.Add(new StrategyMetric() { Name = "Expected cont. after next DCA", FormattedValue = this.expectedContracts.ToString() });
             result.Add(new StrategyMetric() { Name = "Executed DCA Level", FormattedValue = GetExecutedDCALevel().ToString() });
             result.Add(new StrategyMetric() { Name = "Max Drawdown", FormattedValue = maxDrawdown.ToString("F2") });
             result.Add(new StrategyMetric() { Name = "Current PnL", FormattedValue = currentPosition?.GrossPnL.ToString() ?? "n/a" });
@@ -50,8 +51,23 @@ namespace BoomerangQT
             result.Add(new StrategyMetric() { Name = "Minimum Range Size", FormattedValue = this.minimumRangeSize.ToString() ?? "n/a" });
             result.Add(new StrategyMetric() { Name = "DCA sizes", FormattedValue = GetDCASizes() });
             result.Add(new StrategyMetric() { Name = "DCA %", FormattedValue = GetDCAPercentages() });
+            if (this.takeProfitType == TPType.FixedPercentage)
+            {
+                result.Add(new StrategyMetric() { Name = "TP %", FormattedValue = this.takeProfitPercentage.ToString() });
+            }
+            if (this.takeProfitType == TPType.FixedPoints)
+            {
+                result.Add(new StrategyMetric() { Name = "TP %", FormattedValue = this.takeProfitPoints.ToString() });
+            }
+            result.Add(new StrategyMetric() { Name = "Take Profit type", FormattedValue = this.takeProfitType.ToString() });
+            result.Add(new StrategyMetric() { Name = "SL %", FormattedValue = this.stopLossPercentage.ToString() });
+            if (this.firstEntryOption == FirstEntryOption.MainEntry)
+            {
+                result.Add(new StrategyMetric() { Name = "Initial contracts", FormattedValue = this.initialQuantity.ToString() });
+            }
+            result.Add(new StrategyMetric() { Name = "Main entry option", FormattedValue = this.firstEntryOption.ToString() });
             result.Add(new StrategyMetric() { Name = "Strategy Side", FormattedValue = this.strategySide.ToString() });
-            result.Add(new StrategyMetric() { Name = "Expected cont. after next DCA", FormattedValue = this.expectedContracts.ToString() });
+            
             
             return result;
         }

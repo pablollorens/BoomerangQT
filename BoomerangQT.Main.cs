@@ -365,6 +365,8 @@ namespace BoomerangQT
             try
             {
                 date = date.ToLocalTime();
+                //Log($"Date:{date:yyyy-MM-dd HH:mm:ss}");
+
                 TimeSpan selectedUtcOffset = selectedTimeZone.GetUtcOffset(date);
 
                 rangeStart = new DateTimeOffset(date.Year, date.Month, date.Day, startTime.Hour, startTime.Minute, 0, selectedUtcOffset);
