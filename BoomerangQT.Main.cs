@@ -312,7 +312,21 @@ namespace BoomerangQT
                 }
                 else if (strategyStatus == Status.WaitingToEnter)
                 {
-                    
+                    if (strategySide == Side.Sell && rangeLow.HasValue && currentBar.Low <= rangeLow.Value)
+                    {
+                        // SELL breakout: Price touches or crosses the bottom of the range
+                        Log("Price touched or crossed below range low after a SELL breakout. Cancelling DCA and resetting strategy.", StrategyLoggingLevel.Trading);
+                        ResetStrategy();
+                        return;
+                    }
+                    else if (strategySide == Side.Buy && rangeHigh.HasValue && currentBar.High >= rangeHigh.Value)
+                    {
+                        // BUY breakout: Price touches or crosses the top of the range
+                        Log("Price touched or crossed above range high after a BUY breakout. Cancelling DCA and resetting strategy.", StrategyLoggingLevel.Trading);
+                        ResetStrategy();
+                        return;
+                    }
+
                 }
                 else if (strategyStatus == Status.ManagingTrade)
                 {

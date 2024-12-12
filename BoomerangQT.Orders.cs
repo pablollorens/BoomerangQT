@@ -123,6 +123,9 @@ namespace BoomerangQT
                 else
                 {
                     //Log($"DCA Level {levelNumber} entry placed successfully.", StrategyLoggingLevel.Trading);
+                    dcaLevel.OrderId = result.OrderId;
+                    dcaOrders.Add(result.OrderId);
+
                     expectedContracts = dcaLevel.Quantity;
                     strategyStatus = Status.WaitingToEnter;
                 }
@@ -138,7 +141,7 @@ namespace BoomerangQT
         {
             try
             {
-                Log($"OnPositionAdded", StrategyLoggingLevel.Trading);
+                //Log($"OnPositionAdded", StrategyLoggingLevel.Trading);
 
                 //Log($"status: {strategyStatus} - WaitingForRange or ManagingTrade will make us exit this function");
 
