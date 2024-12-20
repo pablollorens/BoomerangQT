@@ -68,7 +68,8 @@ namespace BoomerangQT
             result.Add(new StrategyMetric() { Name = "Main entry option", FormattedValue = this.firstEntryOption.ToString() });
             result.Add(new StrategyMetric() { Name = "Strategy Side", FormattedValue = this.strategySide.ToString() });
             
-            
+
+
             return result;
         }
 

@@ -136,6 +136,8 @@ namespace BoomerangQT
 
                 //Log($"Calculated DCA Price: {dcaPrice}", StrategyLoggingLevel.Trading);
 
+                dcaPrice = CurrentSymbol.RoundPriceToTickSize(dcaPrice);
+
                 return dcaPrice;
             }
             catch (Exception ex)

@@ -73,7 +73,7 @@ namespace BoomerangQT
                     Log($"Failed to place order: {result.Message}", StrategyLoggingLevel.Error);
                 else
                 {
-                    //Log("Order placed successfully.", StrategyLoggingLevel.Trading);
+                    Log("Order placed successfully.", StrategyLoggingLevel.Trading);
                 }
             }
             catch (Exception ex)
@@ -156,17 +156,64 @@ namespace BoomerangQT
                     return;
                 }
 
-                Log($"currentPosition: {currentPosition} - only null will make us continue");
+               
+                if (currentPosition == null)
+                {
+                    Log($"currentPosition: NULL", StrategyLoggingLevel.Trading);
+                } else
+                {
+                    Log($"currentPosition: {currentPosition}", StrategyLoggingLevel.Trading);
+                }
 
                 // if a position is being opened: by range breakout when main entry is active or by an execution of a DCA order
                 // This will only happen once per range
                 if (currentPosition != null) return;
 
-                Log($"position.Symbol: {position.Symbol} and currentSymbol: {CurrentSymbol} should be the same, and the accounts also {position.Account}/{CurrentAccount}");
+                Log($"la posicion es NULL y entonces esto son los simbolos position.Symbol: {position.Symbol} and currentSymbol: {CurrentSymbol} should be the same, and the accounts also {position.Account}/{CurrentAccount}");
 
-                if (position.Symbol == null || CurrentSymbol == null || !position.Symbol.Name.StartsWith(CurrentSymbol.Name) || position.Account != CurrentAccount) return;
+                if (position.Symbol == null || CurrentSymbol == null || position.Account != CurrentAccount) 
+                {
+                    Log($"position.Symbol or CurrentSymbol are null or accounts are not the same", StrategyLoggingLevel.Error);
+                    return;
+                }
+
+                if (!position.Symbol.Name.Contains(CurrentSymbol.Name.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    Log($"Position symbol {position.Symbol.Name} does not match current symbol {CurrentSymbol.Name}.", StrategyLoggingLevel.Error);
+                    return;
+                }
+                else
+                {
+                    Log($"Los nombres de los simbolos COINCIDEN, podemos continuar", StrategyLoggingLevel.Trading);
+                }
+
+                Log($"Vamos a intentarlo ahora con el metodo antiguo", StrategyLoggingLevel.Trading);
+                if (position.Symbol == null || CurrentSymbol == null || !position.Symbol.Name.StartsWith(CurrentSymbol.Name) || position.Account != CurrentAccount)
+                {
+                    Log($"Este metodo no pasaba, normal que tuvieramos ese error", StrategyLoggingLevel.Error);
+                    return;
+                }
+
+                //Log($"position.Symbol: {position.Symbol} and currentSymbol: {CurrentSymbol} should be the same, and the accounts also {position.Account}/{CurrentAccount}");
+
+                //if (position.Symbol == null || CurrentSymbol == null || position.Account != CurrentAccount) 
+                //{
+                //    Log($"position.Symbol or CurrentSymbol are null or accounts are not the same", StrategyLoggingLevel.Error);
+                //    return;
+                //}
+
+                //if (!position.Symbol.Name.Contains(CurrentSymbol.Name.Trim(), StringComparison.OrdinalIgnoreCase))
+                //{
+                //    Log($"Position symbol {position.Symbol.Name} does not match current symbol {CurrentSymbol.Name}.", StrategyLoggingLevel.Error);
+                //    return;
+                //}
+
+                Log($"We had passed the devil firewall");
 
                 currentPosition = position;
+
+                Log($"ahora tenemos esta nueva currentPosition: {currentPosition}", StrategyLoggingLevel.Trading);
+
 
                 if (currentPosition != null)
                 {
@@ -210,6 +257,7 @@ namespace BoomerangQT
             // We need to identify moments to skip this checking, because we only want to protect the complete position
             if (currentPosition.Quantity < expectedContracts)
             {
+                //Log("apparently quantity is not enough YET");
                 this.semaphoreOnPositionUpdated = false; // Release the lock
                 return; // Contracts are probably being added to the position, not complete yet, this will also accept adding contracts via DCA orders
             }
@@ -378,7 +426,7 @@ namespace BoomerangQT
                     Log($"Failed to place Stop Loss order: {result.Message}", StrategyLoggingLevel.Error);
                 else
                 {
-                    //Log($"Stop Loss order placed at {stopLossPrice} with quantity {currentPosition.Quantity}.", StrategyLoggingLevel.Trading);
+                    Log($"Stop Loss order placed at {stopLossPrice} with quantity {currentPosition.Quantity}.", StrategyLoggingLevel.Trading);
                     stopLossOrderId = result.OrderId;
                 }
             }
@@ -397,7 +445,7 @@ namespace BoomerangQT
 
                 var takeProfitPrice = CalculateTakeProfitPrice();
 
-                //Log($"takeProfitPrice ---: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+                Log($"takeProfitPrice ---: {takeProfitPrice}", StrategyLoggingLevel.Trading);
 
                 var request = new PlaceOrderRequestParameters
                 {
@@ -414,7 +462,7 @@ namespace BoomerangQT
                     }
                 };
 
-                //Log($"Cancelling previous takeProfitOrderId {takeProfitOrderId}", StrategyLoggingLevel.Trading);
+                Log($"Cancelling previous takeProfitOrderId {takeProfitOrderId}", StrategyLoggingLevel.Trading);
                 CancelExistingOrder(takeProfitOrderId);
 
                 var result = Core.Instance.PlaceOrder(request);
@@ -422,7 +470,8 @@ namespace BoomerangQT
                     Log($"Failed to place Take Profit order: {result.Message}", StrategyLoggingLevel.Error);
                 else
                 {
-                    //Log($"Take Profit order placed at {takeProfitPrice} with quantity {currentPosition.Quantity}.", StrategyLoggingLevel.Trading);
+                    Log($"Take Profit order placed at {takeProfitPrice} with quantity {currentPosition.Quantity}.", StrategyLoggingLevel.Trading);
+                    Log($"orderId: {result.OrderId}");
                     takeProfitOrderId = result.OrderId;
                 }
             }
@@ -445,7 +494,9 @@ namespace BoomerangQT
                     ? (double) this.openPrice - (double) this.openPrice * (stopLossPercentage / 100)
                     : (double) this.openPrice + (double) this.openPrice * (stopLossPercentage / 100);
 
-                //Log($"Calculated Stop Loss Price: {stopLossPrice}", StrategyLoggingLevel.Trading);
+                stopLossPrice = CurrentSymbol.RoundPriceToTickSize(stopLossPrice);
+
+                Log($"Calculated Stop Loss Price: {stopLossPrice}", StrategyLoggingLevel.Trading);
 
                 stopLossGlobalPrice = stopLossPrice;
 
@@ -463,11 +514,10 @@ namespace BoomerangQT
             try
             {
                 double takeProfitPrice = currentPosition.OpenPrice;
-                //Log($"initial takeprofit price: {takeProfitPrice}");
+                Log($"initial takeprofit price: {takeProfitPrice}");
 
-                //Log($"enableBreakEven: {enableBreakEven}");
-                //Log($"breakevenOption: {breakevenOption}");
-                //Log($"numberDCA: {numberDCA}");
+                Log($"enableBreakEven: {enableBreakEven}");
+                Log($"breakevenOption: {breakevenOption}");
               
                 // Adjust for breakeven if conditions are met, basically we enter BE functionality if DCA is equal to the configured one, or if the configured option in "every dca level"
                 if ((enableBreakEven && breakevenOption == BreakevenOption.EveryDcaLevel) || (enableBreakEven && (int) breakevenOption == executedDCALevel))
@@ -488,8 +538,9 @@ namespace BoomerangQT
                             break;
 
                         case TpAdjustmentType.FixedPercentage:
-                            
+                            Log("Fixed percentage type");
                             adjustment = breakevenPrice * (tpAdjustmentValue / 100.0);
+                            Log($"adjustement: {adjustment}");
                             break;
 
                         case TpAdjustmentType.RangeSize:
@@ -513,11 +564,13 @@ namespace BoomerangQT
                         breakevenPrice = breakevenPrice - (double) adjustment;
                     }
 
-                    //Log($"Type of Breakeven: {(TpAdjustmentType)tpAdjustmentType}", StrategyLoggingLevel.Trading);
-                    //Log($"Breakeven value: {adjustment}", StrategyLoggingLevel.Trading);
-                    //Log($"New calculated Breakeven Price: {breakevenPrice}", StrategyLoggingLevel.Trading);
+                    Log($"Type of Breakeven: {(TpAdjustmentType)tpAdjustmentType}", StrategyLoggingLevel.Trading);
+                    Log($"Breakeven value: {adjustment}", StrategyLoggingLevel.Trading);
+                    Log($"New calculated Breakeven Price: {breakevenPrice}", StrategyLoggingLevel.Trading);
                     takeProfitPrice = breakevenPrice;
-                   // Log($"Breakeven conditions met. Adjusted Take Profit to breakeven price: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+                    Log($"Breakeven conditions met. Adjusted Take Profit to breakeven price: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+
+                    takeProfitPrice = CurrentSymbol.RoundPriceToTickSize(takeProfitPrice);
 
                     return takeProfitPrice;
                 }
@@ -541,7 +594,7 @@ namespace BoomerangQT
                         takeProfitPrice = currentPosition.Side == Side.Buy
                             ? currentPosition.OpenPrice + (currentPosition.OpenPrice * tpPercentage)
                             : currentPosition.OpenPrice - (currentPosition.OpenPrice * tpPercentage);
-                        //Log($"Take Profit set using fixed percentage: {takeProfitPrice}", StrategyLoggingLevel.Trading);
+                        Log($"Take Profit set using fixed percentage: {takeProfitPrice}", StrategyLoggingLevel.Trading);
                         break;
 
                     case TPType.FixedPoints:
@@ -551,6 +604,8 @@ namespace BoomerangQT
                         //Log($"Take Profit set using fixed points: {takeProfitPrice}", StrategyLoggingLevel.Trading);
                         break;
                 }
+
+                takeProfitPrice = CurrentSymbol.RoundPriceToTickSize(takeProfitPrice);
 
                 return takeProfitPrice;
 

@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using TradingPlatform.BusinessLayer;
 using TradingPlatform.BusinessLayer.Utils;
 
@@ -288,6 +289,7 @@ namespace BoomerangQT
                     if (previousPositionExists)
                     {
                         Log("If it already exists a position in this asset, we skip the day.", StrategyLoggingLevel.Trading);
+                        Thread.Sleep(5000);
                         ResetStrategy();
                         return;
                     }
@@ -305,7 +307,6 @@ namespace BoomerangQT
                 
                 if (strategyStatus == Status.BreakoutDetection)
                 {
-                    
                     if (closedBar == true) {
                         DetectBreakout(previousBar);
                     }
