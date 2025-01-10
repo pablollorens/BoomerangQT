@@ -96,7 +96,7 @@ namespace BoomerangQT
             Description = "Range breakout strategy with multiple DCA levels and session end position closure";
 
             selectedTimeZone = Core.Instance.TimeUtils.SelectedTimeZone.TimeZoneInfo;
-            Log($"SelectedTimeZone: {selectedTimeZone}");
+            //Log($"SelectedTimeZone: {selectedTimeZone}");
 
             // Inicializar startTime
             // Here is ok to use local time, because is the one in Quantower.
@@ -117,7 +117,8 @@ namespace BoomerangQT
             detectionEndTime = ConvertToLocalTime(detectionEndTime);
             closePositionsAtTime = ConvertToLocalTime(closePositionsAtTime);
 
-            DateTime today = ConvertToLocalTime(DateTime.UtcNow);
+            //DateTime today = ConvertToLocalTime(DateTime.UtcNow);
+            DateTime today = DateTime.Today;
 
             UpdateRangeTimes(today);
 
@@ -171,6 +172,8 @@ namespace BoomerangQT
                 //historicalData = CurrentSymbol.GetHistory(selectedPeriod, DateTime.Now);
                 historicalData = CurrentSymbol.GetHistory(selectedPeriod, today);
 
+                Log($"DateTime.Now: {today:yyyy-MM-dd HH:mm}");
+
                 if (historicalData == null)
                 {
                     Log("Failed to get historical data.", StrategyLoggingLevel.Error);
@@ -218,7 +221,7 @@ namespace BoomerangQT
 
         private void OnHistoryItemUpdated(object sender, HistoryEventArgs e)
         {
-            Log($"We enter in HistoryItemUpdated");
+            //Log($"We enter in HistoryItemUpdated");
 
             try
             {
@@ -239,11 +242,11 @@ namespace BoomerangQT
                 DateTimeOffset previousBarTime = TimeZoneInfo.ConvertTime(previousBar.TimeLeft, selectedTimeZone);
                 DateTimeOffset currentBarTime = TimeZoneInfo.ConvertTime(currentBar.TimeLeft, selectedTimeZone);
 
-                Log($"OnHistoryItemUpdated - previousBarTime:{previousBarTime.DateTime:yyyy-MM-dd HH:mm}");
-                Log($"OnHistoryItemUpdated - currentBarTime:{currentBarTime.DateTime:yyyy-MM-dd HH:mm}");
+                //Log($"OnHistoryItemUpdated - previousBarTime:{previousBarTime.DateTime:yyyy-MM-dd HH:mm}");
+                //Log($"OnHistoryItemUpdated - currentBarTime:{currentBarTime.DateTime:yyyy-MM-dd HH:mm}");
 
-                Log($"OnHistoryItemUpdated - previousBarTime kind:{previousBarTime.DateTime.Kind}");
-                Log($"OnHistoryItemUpdated - currentBarTime kind:{currentBarTime.DateTime.Kind}");
+                //Log($"OnHistoryItemUpdated - previousBarTime kind:{previousBarTime.DateTime.Kind}");
+                //Log($"OnHistoryItemUpdated - currentBarTime kind:{currentBarTime.DateTime.Kind}");
 
                 //DateTime previousBarTime = previousBar.TimeLeft;
                 //DateTime currentBarTime = currentBar.TimeLeft;
@@ -367,9 +370,9 @@ namespace BoomerangQT
         {
             try
             {
-                Log($"UpdateRangeTimes");
+                //Log($"UpdateRangeTimes");
                 date = date.ToLocalTime();
-                Log($"Date:{date:yyyy-MM-dd HH:mm:ss}");
+                //Log($"Date:{date:yyyy-MM-dd HH:mm:ss}");
 
                 TimeSpan selectedUtcOffset = selectedTimeZone.GetUtcOffset(date);
 
@@ -405,11 +408,11 @@ namespace BoomerangQT
                     closePositionsAt = closePositionsAt.AddDays(1);
                 }
 
-                Log($"rangeStart2: {rangeStart.DateTime:yyyy-MM-dd HH:mm:ss}");
-                Log($"rangeEnd2: {rangeEnd.DateTime:yyyy-MM-dd HH:mm:ss}");
-                Log($"detectionStart2: {detectionStart.DateTime:yyyy-MM-dd HH:mm:ss}");
-                Log($"detectionEnd2: {detectionEnd.DateTime:yyyy-MM-dd HH:mm:ss}");
-                Log($"closePositionsAt2: {closePositionsAt.DateTime:yyyy-MM-dd HH:mm:ss}");
+                //Log($"rangeStart2: {rangeStart.DateTime:yyyy-MM-dd HH:mm:ss}");
+                //Log($"rangeEnd2: {rangeEnd.DateTime:yyyy-MM-dd HH:mm:ss}");
+                //Log($"detectionStart2: {detectionStart.DateTime:yyyy-MM-dd HH:mm:ss}");
+                //Log($"detectionEnd2: {detectionEnd.DateTime:yyyy-MM-dd HH:mm:ss}");
+                //Log($"closePositionsAt2: {closePositionsAt.DateTime:yyyy-MM-dd HH:mm:ss}");
             }
             catch (Exception ex)
             {
